@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MONSTER Survivors</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="ui">
+        <div>HP: <span id="hp-text">100</span></div>
+        <div class="bar-container">
+            <div id="hp-bar"></div>
+        </div>
+        <div>MP: <span id="mp-text">100</span></div>
+        <div class="bar-container">
+            <div id="mp-bar"></div>
+        </div>
+        <div>LV: <span id="level-text">1</span></div>
+        <div class="bar-container">
+            <div id="xp-bar"></div>
+        </div>
+        <div>Wave: <span id="wave-text">1</span></div>
+        <div>Score: <span id="score">0</span></div>
+        <div style="font-size: 16px; margin-top: 5px;">AUTO BATTLE (B): <span id="auto-battle">OFF</span></div>
+        <div style="font-size: 16px;">AUTO LEVEL UP (L): <span id="auto-levelup">OFF</span></div>
+        <div style="font-size: 16px;">SPEED (-/+): <span id="speed-text">1.0</span>x</div>
+        <div style="font-size: 16px;">MUTE (M): <span id="mute-status">OFF</span></div>
+        <div style="font-size: 16px;">TIME: <span id="time-text">DAY</span></div>
+    </div>
+    <div id="spells-container"></div>
+    <div id="inventory"></div>
+    <div id="levelup-screen">
+        <h1 style="color: white; margin-bottom: 20px;">LEVEL UP!</h1>
+        <div id="stats-container"></div>
+        <div id="powerup-container"></div>
+    </div>
+    <div id="npc-select-screen">
+        <h1 style="color: white; margin-bottom: 20px;">仲間を募集</h1>
+        <div id="npc-container" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;"></div>
+    </div>
+    <div id="dialog-box"></div>
+    <div id="chat-box"></div>
+    <div id="chest-screen">
+        <h1 style="font-size: 48px; text-shadow: 0 0 10px red;">宝箱を発見！</h1>
+        <div id="chest-items" class="chest-content"></div>
+        <button class="chest-btn" onclick="closeChest()">取得</button>
+    </div>
+    <div id="ranking-screen">
+        <h1 style="color: #FFD700; text-shadow: 0 0 10px #FFD700;">RANKING</h1>
+        <div id="ranking-list" style="text-align: left; margin-bottom: 20px;"></div>
+        <button class="chest-btn" onclick="closeRanking()">CLOSE</button>
+    </div>
+    <div id="ending-screen">
+        <h1 style="font-size: 48px; color: #FFD700; margin-bottom: 20px;">CONGRATULATIONS!</h1>
+        <p style="font-size: 24px; color: white; margin-bottom: 40px;">あなたは魔王を倒した。そして世界に平和が訪れた</p>
+        <div style="display: flex; gap: 20px;">
+            <button class="chest-btn" onclick="startEndlessMode()">エンドレスモード</button>
+            <button class="chest-btn" style="background-color: #FF4500;" onclick="location.reload()">最初から</button>
+        </div>
+    </div>
+    <div id="start-screen">
+        <h1 style="font-size: 48px; color: #FFD700; text-shadow: 0 0 10px red; margin-bottom: 20px; animation: titleFloat 3s ease-in-out infinite;">MONSTER SURVIVORS</h1>
+        <p style="font-size: 24px; color: white; animation: blink 1s infinite;">CLICK OR PRESS KEY TO START</p>
+        <button class="chest-btn" style="margin-top: 20px; z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); showRanking()">RANKING</button>
+        <div style="position: absolute; bottom: 10px; right: 10px; font-size: 14px; color: rgba(255,255,255,0.7);">
+            Build: v0.9.6
+        </div>
+    </div>
+    <div id="debug-menu">
+        <h3 style="margin-top:0; color:#00ffff;">DEBUG MENU (F8)</h3>
+        <div class="debug-section">
+            <h4>General</h4>
+            <button class="debug-btn" onclick="debugLevelUp()">Level Up (+1)</button>
+            <button class="debug-btn" onclick="debugLevelUp(10)">Level Up (+10)</button>
+            <button class="debug-btn" onclick="debugKillAll()">Kill All Enemies</button>
+            <button class="debug-btn" onclick="debugHeal()">Full Heal</button>
+            <button class="debug-btn" onclick="debugInvincible()">Toggle Invincible</button>
+            <div id="debug-status" style="font-size:10px; color:#aaa; margin-top:5px;">Invincible: OFF</div>
+        </div>
+        <div class="debug-section" id="debug-items">
+            <h4>Add Item/Perk</h4>
+        </div>
+        <div class="debug-section" id="debug-npcs">
+            <h4>Spawn NPC</h4>
+        </div>
+        <div class="debug-section" id="debug-enemies">
+            <h4>Spawn Enemy</h4>
+        </div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script src="js/core.js"></script>
+    <script src="js/enemies-data.js"></script>
+    <script src="js/sprites.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/classes.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/powerups-ui.js"></script>
+    <script src="js/game-loop.js"></script>
+    <script src="js/opening-debug.js"></script>
+</body>
+</html>
