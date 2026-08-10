@@ -698,6 +698,23 @@
             }
         }
 
+        function killPlayer(cause) {
+            if (player.revive > 0) {
+                player.revive--;
+                player.hp = player.maxHp * 0.5;
+                player.invincibleTime = 120; // 2秒の無敵猶予
+                hpText.innerText = Math.max(0, Math.floor(player.hp));
+                hpBar.style.width = (player.hp / player.maxHp * 100) + "%";
+                whiteFlashOpacity = 1.0;
+                spawnExplosion(player.x + player.width/2, player.y + player.height/2, '#FFD700', 30);
+                showChat("SYSTEM", `REVIVE! (残り${player.revive}回)`, "#FFD700");
+                Audio.legend();
+                return;
+            }
+            gameOver = true;
+            killedBy = cause;
+        }
+
         function checkCollisions() {
             // 弾丸と敵の衝突
             for (let i = bullets.length - 1; i >= 0; i--) {
@@ -948,6 +965,51 @@
                 }
             }
 
+            // チャクラムと敵の衝突
+            if (player.chakramLevel > 0) {
+                const count = player.chakramLevel;
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const e = enemies[i];
+                    if (e.chakramInvincible > 0) { e.chakramInvincible--; continue; }
+
+                    for (let c = 0; c < count; c++) {
+                        const angle = player.chakramAngle + (Math.PI * 2 / count) * c;
+                        const cx = player.getCenter().x + Math.cos(angle) * player.chakramDist - 10;
+                        const cy = player.getCenter().y + Math.sin(angle) * player.chakramDist - 10;
+
+                        if (cx < e.x + e.width && cx + 20 > e.x &&
+                            cy < e.y + e.height && cy + 20 > e.y) {
+
+                            e.hp -= 8 * player.damage;
+                            e.chakramInvincible = 12; // ヒット間隔
+                            if (e.hp <= 0) {
+                                enemies.splice(i, 1);
+                                spawnLoot(e);
+                                spawnExplosion(e.x + e.width/2, e.y + e.height/2, ENEMY_DATA[e.type].color, 10);
+
+                                if (Math.random() < 0.05 * player.luck) {
+                                    potions.push(new Potion(e.x, e.y));
+                                }
+                                if (Math.random() < 0.005 * player.luck) {
+                                    uniqueDrops.push(new UniqueWeaponDrop(e.x, e.y));
+                                }
+
+                                score += ENEMY_DATA[e.type].isBoss ? 500 : 10;
+                                scoreDisplay.innerText = score;
+                                Audio.explosion();
+
+                                if (e.type === 'dark_lord') {
+                                    isTrueEnding = true;
+                                    gameClear = true;
+                                    saveScore(score, Math.floor(frameCount / 1800) + 1, true);
+                                }
+                            }
+                            break; // 1フレームに複数の刃が当たっても1回分
+                        }
+                    }
+                }
+            }
+
             // 斧と敵の衝突
             for (let i = axes.length - 1; i >= 0; i--) {
                 const a = axes[i];
@@ -1171,8 +1233,7 @@
                         player.invincibleTime = 30; // 無敵時間 (0.5秒)
                         
                         if (player.hp <= 0) {
-                            gameOver = true;
-                            killedBy = e.type.toUpperCase().replace('_', ' ');
+                            killPlayer(e.type.toUpperCase().replace('_', ' '));
                         }
                         break; // 1フレームに1回ダメージ
                     }
@@ -1337,6 +1398,21 @@
                     hpBar.style.width = (player.hp / player.maxHp * 100) + "%";
                     Audio.gem(); // ポーション取得音（ジェムと同じで代用）
                     potions.splice(i, 1);
+                }
+            }
+
+            // プレイヤーとMPポーションの衝突
+            for (let i = mpPotions.length - 1; i >= 0; i--) {
+                const p = mpPotions[i];
+                if (player.x < p.x + p.width &&
+                    player.x + player.width > p.x &&
+                    player.y < p.y + p.height &&
+                    player.y + player.height > p.y) {
+
+                    player.mp = Math.min(player.mp + p.healAmount, player.maxMp);
+                    updateMpBar();
+                    Audio.gem();
+                    mpPotions.splice(i, 1);
                 }
             }
         }

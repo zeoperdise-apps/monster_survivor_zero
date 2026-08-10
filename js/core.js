@@ -34,6 +34,7 @@
         let gameClear = false;
         let endingTimer = 0;
         let finalBossSpawned = false;
+        let darkLordSpawned = false;
         let killedBy = '';
         const villages = [];
         const fortresses = [];

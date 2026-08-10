@@ -118,6 +118,8 @@
                 this.spearLevel = 0;
                 this.whipLevel = 0;
                 this.chakramLevel = 0;
+                this.chakramAngle = 0;
+                this.chakramDist = 70;
                 this.scytheLevel = 0;
                 this.bombLevel = 0;
                 this.bowLevel = 0;

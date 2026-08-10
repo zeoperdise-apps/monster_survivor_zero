@@ -252,6 +252,21 @@
                 }
             }
 
+            // チャクラムの描画
+            const chakramCount = player.chakramLevel;
+            if (chakramCount > 0) {
+                for (let i = 0; i < chakramCount; i++) {
+                    const angle = player.chakramAngle + (Math.PI * 2 / chakramCount) * i;
+                    const cx = player.getCenter().x + Math.cos(angle) * player.chakramDist - 10;
+                    const cy = player.getCenter().y + Math.sin(angle) * player.chakramDist - 10;
+                    ctx.save();
+                    ctx.translate(cx + 10, cy + 10);
+                    ctx.rotate(angle * 2);
+                    ctx.drawImage(SPRITES.chakram, -10, -10, 20, 20);
+                    ctx.restore();
+                }
+            }
+
             // 斧の描画
             for (let i = axes.length - 1; i >= 0; i--) {
                 axes[i].draw();
@@ -561,6 +576,11 @@
                 player.bibleAngle += 0.03;
             }
 
+            // チャクラムの更新
+            if (player.chakramLevel > 0) {
+                player.chakramAngle -= 0.05;
+            }
+
             // 斧の生成・更新
             if (player.axeLevel > 0 && !isPaused) {
                 if (player.evolved.axe) {
@@ -727,13 +747,25 @@
             const spawnRate = Math.max(10, ENEMY_SPAWN_RATE - (wave * 5));
             if (frameCount % spawnRate === 0 && enemies.length < 250) {
                 const isNight = (dayTime >= 0.75 || dayTime < 0.25);
-                const types = Object.keys(ENEMY_DATA).filter(k => {
+                // 出現地点(プレイヤー周辺)のバイオームに応じて出現候補を絞り込む
+                const biome = getBiome(player.x, player.y);
+                const biomePool = BIOME_ENEMIES[biome] || Object.keys(ENEMY_DATA).filter(k => !ENEMY_DATA[k].isBoss);
+                let types = biomePool.filter(k => {
                     const data = ENEMY_DATA[k];
-                    if (data.isBoss) return false;
                     if (data.time === 'day' && isNight) return false;
                     if (data.time === 'night' && !isNight) return false;
                     return true;
                 });
+                if (types.length === 0) {
+                    // 現在の時間帯に合う敵がそのバイオームにいない場合は全種類から選ぶ
+                    types = Object.keys(ENEMY_DATA).filter(k => {
+                        const data = ENEMY_DATA[k];
+                        if (data.isBoss) return false;
+                        if (data.time === 'day' && isNight) return false;
+                        if (data.time === 'night' && !isNight) return false;
+                        return true;
+                    });
+                }
                 const type = types[Math.floor(Math.random() * types.length)];
                 enemies.push(new Enemy(type, player));
             }
@@ -758,6 +790,14 @@
                 enemies.push(bossSpawned);
                 finalBossSpawned = true;
                 Audio.playBGM('final_boss');
+            }
+
+            // 裏魔王出現 (エンドレスモードでラージボスをさらに3体撃破後)
+            if (isEndlessMode && largeBossDefeatedCount >= 5 && !darkLordSpawned) {
+                bossSpawned = new Enemy('dark_lord', player);
+                enemies.push(bossSpawned);
+                darkLordSpawned = true;
+                Audio.playBGM('dark_lord');
             }
 
             // ボス出現時の会話
@@ -867,8 +907,7 @@
                         Audio.damage();
                         b.active = false;
                         if (player.hp <= 0) {
-                            gameOver = true;
-                            killedBy = "ENEMY BULLET";
+                            killPlayer("ENEMY BULLET");
                         }
                     }
                 }
