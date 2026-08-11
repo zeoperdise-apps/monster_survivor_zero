@@ -1317,6 +1317,66 @@ describe('ランキング', () => {
     });
 });
 
+describe('キーボード操作: タイトル/エンディング画面のボタン選択', () => {
+    test('updateStartSelection()は選択中のボタンにのみselectedクラスを付与する', () => {
+        const savedIndex = selectedStartIndex;
+        selectedStartIndex = 1;
+        updateStartSelection();
+        const btns = document.querySelectorAll('.start-menu-btn');
+        assertEqual(btns.length, 3);
+        btns.forEach((b, i) => assertEqual(b.classList.contains('selected'), i === 1));
+        selectedStartIndex = savedIndex;
+        updateStartSelection();
+    });
+
+    test('updateEndingSelection()は選択中のボタンにのみselectedクラスを付与する', () => {
+        const savedIndex = selectedEndingIndex;
+        selectedEndingIndex = 1;
+        updateEndingSelection();
+        const btns = document.querySelectorAll('.ending-menu-btn');
+        assertEqual(btns.length, 2);
+        btns.forEach((b, i) => assertEqual(b.classList.contains('selected'), i === 1));
+        selectedEndingIndex = savedIndex;
+        updateEndingSelection();
+    });
+
+    test('isAnyTitleModalOpen()は設定/ストア/ランキング画面のいずれかが開いていればtrueを返す', () => {
+        const s = document.getElementById('settings-screen');
+        const savedDisplay = s.style.display;
+        s.style.display = 'none';
+        assertFalse(isAnyTitleModalOpen());
+        s.style.display = 'flex';
+        assertTrue(isAnyTitleModalOpen());
+        s.style.display = savedDisplay;
+    });
+
+    test('エンディング画面表示中、矢印キーで選択が移動しEnterで選択したボタンが実行される', () => {
+        const screen = document.getElementById('ending-screen');
+        const savedDisplay = screen.style.display;
+        const savedIndex = selectedEndingIndex;
+        const savedGameOver = gameOver;
+        gameOver = false; // ゲームオーバー分岐と競合しないようにする
+        screen.style.display = 'flex';
+        selectedEndingIndex = 0;
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        assertEqual(selectedEndingIndex, 1, '→キーで選択が1つ進むはず');
+
+        const btns = document.querySelectorAll('.ending-menu-btn');
+        let activated = false;
+        const originalOnclick = btns[1].onclick;
+        btns[1].onclick = () => { activated = true; }; // location.reload()を実際には発火させない
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        assertTrue(activated, 'Enterで選択中のボタンがクリックされるはず');
+        btns[1].onclick = originalOnclick;
+
+        screen.style.display = savedDisplay;
+        selectedEndingIndex = savedIndex;
+        gameOver = savedGameOver;
+        updateEndingSelection();
+    });
+});
+
 // テスト完了後はgameLoop()のrequestAnimationFrameループを止める。
 // このページは本物のゲームスクリプトを読み込んでいるため、放置すると裏で無限ループし続け、
 // ヘッドレスブラウザ経由でこのファイルを自動実行する場合にプロセスが終了しづらくなるため。

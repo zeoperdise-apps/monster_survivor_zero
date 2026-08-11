@@ -57,8 +57,8 @@
         <p style="font-size: 24px; color: white; margin-bottom: 10px;">あなたは魔王を倒した。そして世界に平和が訪れた</p>
         <p id="ending-shard-earned" style="font-size: 18px; color: #00FFFF; margin-bottom: 30px;"></p>
         <div style="display: flex; gap: 20px;">
-            <button class="chest-btn" onclick="startEndlessMode()">エンドレスモード</button>
-            <button class="chest-btn" style="background-color: #FF4500;" onclick="location.reload()">最初から</button>
+            <button class="chest-btn ending-menu-btn selected" onclick="startEndlessMode()">エンドレスモード</button>
+            <button class="chest-btn ending-menu-btn" style="background-color: #FF4500;" onclick="location.reload()">最初から</button>
         </div>
     </div>
     <div id="start-screen">
@@ -66,12 +66,13 @@
         <p style="font-size: 24px; color: white; animation: blink 1s infinite;">CLICK OR PRESS KEY TO START</p>
         <div id="start-shard-display" style="font-size: 16px; color: #00FFFF; margin-top: 10px;">💎 魂の欠片: <span id="start-shard-count">0</span></div>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); showRanking()">RANKING</button>
-            <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); openSettings()">SETTINGS</button>
-            <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px; background-color:#00FFFF;" onclick="event.stopPropagation(); openMetaStore()">STORE</button>
+            <button class="chest-btn start-menu-btn selected" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); showRanking()">RANKING</button>
+            <button class="chest-btn start-menu-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); openSettings()">SETTINGS</button>
+            <button class="chest-btn start-menu-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px; background-color:#00FFFF;" onclick="event.stopPropagation(); openMetaStore()">STORE</button>
         </div>
+        <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 8px;">（←→でボタン選択、Enter/Spaceで決定）</p>
         <div style="position: absolute; bottom: 10px; right: 10px; font-size: 14px; color: rgba(255,255,255,0.7);">
-            Build: v0.9.11
+            Build: v0.9.12
         </div>
     </div>
     <div id="meta-store-screen">

@@ -353,6 +353,28 @@
             document.getElementById('meta-store-screen').style.display = 'none';
         }
 
+        // --- キーボードのみでの操作用: タイトル画面・エンディング画面のボタン選択 ---
+        let selectedStartIndex = 0;
+        let selectedEndingIndex = 0;
+
+        function isAnyTitleModalOpen() {
+            return document.getElementById('settings-screen').style.display === 'flex' ||
+                document.getElementById('meta-store-screen').style.display === 'flex' ||
+                document.getElementById('ranking-screen').style.display === 'flex';
+        }
+
+        function updateStartSelection() {
+            const btns = document.querySelectorAll('.start-menu-btn');
+            btns.forEach((b, i) => b.classList.toggle('selected', i === selectedStartIndex));
+        }
+        updateStartSelection();
+
+        function updateEndingSelection() {
+            const btns = document.querySelectorAll('.ending-menu-btn');
+            btns.forEach((b, i) => b.classList.toggle('selected', i === selectedEndingIndex));
+        }
+        updateEndingSelection();
+
         // --- 入力管理 ---
         const keys = {};
         window.addEventListener('keydown', e => {
@@ -365,6 +387,10 @@
             if (e.key === 'Escape') {
                 if (document.getElementById('settings-screen').style.display === 'flex') {
                     closeSettings();
+                } else if (document.getElementById('meta-store-screen').style.display === 'flex') {
+                    closeMetaStore();
+                } else if (document.getElementById('ranking-screen').style.display === 'flex') {
+                    closeRanking();
                 } else if (isGameStarted) {
                     openSettings();
                 }
@@ -374,8 +400,54 @@
             keys[e.key] = true;
 
             if (!isGameStarted) {
+                // 設定/ストア/ランキングが開いている間は、Tabで選んだボタンのEnter操作などを
+                // 妨げないよう「何かキーを押したらゲーム開始」を発動させない
+                if (isAnyTitleModalOpen()) return;
+
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    selectedStartIndex = (selectedStartIndex - 1 + 3) % 3;
+                    updateStartSelection();
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    selectedStartIndex = (selectedStartIndex + 1) % 3;
+                    updateStartSelection();
+                    return;
+                }
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const btns = document.querySelectorAll('.start-menu-btn');
+                    if (btns[selectedStartIndex]) btns[selectedStartIndex].click();
+                    return;
+                }
                 startGame();
                 return;
+            }
+
+            const settingsOpenMidGame = document.getElementById('settings-screen').style.display === 'flex';
+
+            // ゲームオーバー画面のリトライ/タイトルへ（両ボタンとも動作は同じ）
+            if (!settingsOpenMidGame && gameOver && gameOverTimer > 150 && (e.key === 'Enter' || e.key === ' ')) {
+                location.reload();
+                return;
+            }
+
+            // エンディング画面のボタン選択
+            if (!settingsOpenMidGame && document.getElementById('ending-screen').style.display === 'flex') {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    selectedEndingIndex = (selectedEndingIndex - 1 + 2) % 2;
+                    updateEndingSelection();
+                    return;
+                }
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    selectedEndingIndex = (selectedEndingIndex + 1) % 2;
+                    updateEndingSelection();
+                    return;
+                }
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const btns = document.querySelectorAll('.ending-menu-btn');
+                    if (btns[selectedEndingIndex]) btns[selectedEndingIndex].click();
+                    return;
+                }
             }
 
             if (e.key.toLowerCase() === keyBindings.autoBattle) {

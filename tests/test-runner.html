@@ -80,16 +80,16 @@
         <h1>CONGRATULATIONS!</h1>
         <p>あなたは魔王を倒した。そして世界に平和が訪れた</p>
         <p id="ending-shard-earned"></p>
-        <button class="chest-btn" onclick="startEndlessMode()">エンドレスモード</button>
-        <button class="chest-btn" onclick="location.reload()">最初から</button>
+        <button class="chest-btn ending-menu-btn selected" onclick="startEndlessMode()">エンドレスモード</button>
+        <button class="chest-btn ending-menu-btn" onclick="location.reload()">最初から</button>
     </div>
     <div id="start-screen">
         <h1>MONSTER SURVIVORS</h1>
         <p>CLICK OR PRESS KEY TO START</p>
         <div id="start-shard-display">💎 魂の欠片: <span id="start-shard-count">0</span></div>
-        <button class="chest-btn" onclick="event.stopPropagation(); showRanking()">RANKING</button>
-        <button class="chest-btn" onclick="event.stopPropagation(); openSettings()">SETTINGS</button>
-        <button class="chest-btn" onclick="event.stopPropagation(); openMetaStore()">STORE</button>
+        <button class="chest-btn start-menu-btn selected" onclick="event.stopPropagation(); showRanking()">RANKING</button>
+        <button class="chest-btn start-menu-btn" onclick="event.stopPropagation(); openSettings()">SETTINGS</button>
+        <button class="chest-btn start-menu-btn" onclick="event.stopPropagation(); openMetaStore()">STORE</button>
     </div>
     <div id="meta-store-screen">
         <h1>STORE</h1>

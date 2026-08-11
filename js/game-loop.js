@@ -112,7 +112,7 @@
                     ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
                     ctx.font = '20px sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('CLICK A BUTTON TO CONTINUE', SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 170);
+                    ctx.fillText('CLICK OR PRESS ENTER TO CONTINUE', SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 170);
                 }
 
                 requestAnimationFrame(gameLoop);

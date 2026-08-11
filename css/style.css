@@ -155,6 +155,11 @@
         .chest-btn:hover {
             background: #FFF;
         }
+        .start-menu-btn.selected, .ending-menu-btn.selected {
+            outline: 3px solid #FF00FF;
+            outline-offset: 2px;
+            box-shadow: 0 0 12px #FF00FF;
+        }
         #ending-screen {
             position: absolute;
             top: 0;
