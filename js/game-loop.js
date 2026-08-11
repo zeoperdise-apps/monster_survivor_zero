@@ -645,7 +645,7 @@
             // 魔法の杖更新
             const wandInterval = player.evolved.wand ? 10 : Math.max(20, (hasteTimer > 0 ? 30 : 60) - player.wandLevel * 5);
             if (player.wandLevel > 0 && frameCount % wandInterval === 0) {
-                const target = getNearestEnemy(pc);
+                const target = getNearestEnemy();
                 if (target) {
                     const pc = player.getCenter();
                     const tc = target.getCenter();

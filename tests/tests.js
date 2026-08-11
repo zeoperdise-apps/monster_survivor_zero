@@ -1401,6 +1401,35 @@ describe('キーボード操作: タイトル/エンディング画面のボタ�
     });
 });
 
+describe('updateGame() の回帰テスト', () => {
+    test('魔法の杖(wandLevel>0)を所持していてもupdateGame()がクラッシュしない（TDZ回帰テスト）', () => {
+        // 修正前は updateGame() 内の「魔法の杖更新」ブロックが、関数のさらに下で
+        // 宣言されている const pc （新規武器セクション用）を初期化前に参照してしまい、
+        // "Cannot access 'pc' before initialization" で毎フレームクラッシュしていた。
+        const savedWandLevel = player.wandLevel;
+        const savedFrameCount = frameCount;
+        const originalEnemyCount = enemies.length;
+        const e = new Enemy('goblin', player);
+        e.x = player.x + 100; e.y = player.y;
+        enemies.push(e);
+
+        player.wandLevel = 1;
+        frameCount = 0; // wandInterval(既定55)の倍数にして発動条件を必ず満たす
+        const wandsBefore = wands.length;
+
+        updateGame(); // ここで例外が飛べばtest()側がFAILとして捕捉する
+        assertTrue(wands.length > wandsBefore, '発動条件を満たしたら魔法の杖の弾が生成されるはず');
+
+        wands.length = wandsBefore;
+        // e自身を除去し、updateGame()が自動スポーンした分も含めて元の数まで切り詰める
+        const idx = enemies.indexOf(e);
+        if (idx > -1) enemies.splice(idx, 1);
+        if (enemies.length > originalEnemyCount) enemies.length = originalEnemyCount;
+        player.wandLevel = savedWandLevel;
+        frameCount = savedFrameCount;
+    });
+});
+
 // テスト完了後はgameLoop()のrequestAnimationFrameループを止める。
 // このページは本物のゲームスクリプトを読み込んでいるため、放置すると裏で無限ループし続け、
 // ヘッドレスブラウザ経由でこのファイルを自動実行する場合にプロセスが終了しづらくなるため。

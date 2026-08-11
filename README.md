@@ -1,6 +1,6 @@
 # MONSTER Survivors - プロジェクト仕様書
 
-現在のコード（`index.html` + `css/` + `js/`）の実装内容に基づく仕様書。Build表記: `v0.9.13`（タイトル画面右下に表示）。
+現在のコード（`index.html` + `css/` + `js/`）の実装内容に基づく仕様書。Build表記: `v0.9.14`（タイトル画面右下に表示）。
 
 ## 起動方法
 - 以下のURLにアクセスするだけですぐに遊べる（インストール不要、GitHub Pagesで公開）
@@ -366,9 +366,9 @@ MONSTER Survivorsは、プレイヤーが画面中央に固定され、無限に
 
 ### テスト
 - `tests/test-runner.html` をブラウザで直接開く（file://でも動作）と、実際のゲームスクリプト一式（`js/*.js`）を本番と同じ順序で読み込んだ上で単体試験一式を実行し、結果を画面に一覧表示する。ビルド不要という方針に合わせ、npm等の外部テストランナーは使わず自作の軽量フレームワーク（`tests/framework.js`、外部依存なし）で構成している
-- `tests/tests.js`: `describe()`/`test()`でグループ化された105件の検証群。データ整合性（ENEMY_DATA/POWERUPS/SPELLS/NPC_JOBS/EVOLUTIONSの整合性）、ワールド生成ヘルパー（`getBiome()`/`getObstacle()`の決定論性）、パワーアップ適用、武器進化判定、敵HPへの呪い倍率とWave/エンドレス補正、復活(`killPlayer()`)、音量、設定のキーコンフィグ、NPC職業ステータスと`attack()`の職業別分岐（戦士/僧侶/盗賊）、NPCの復活、ダンジョンの入場からクリア・自動帰還までの一連の流れ、メタプログレッション（魂の欠片の獲得・購入・永続化）、`checkCollisions()`（弾命中・XP取得とレベルアップ・回避率/防御力・村・宝箱・ポーション/MPポーション/ユニーク武器/レジェンド武器/妖精アイテム/契約書の取得）、`castSpell()`（未習得/MP不足/クールダウン中の抑止、ヒール/ヘイスト/ジャッジメントの効果）、要塞（トラップ・囚人・モンスターハウス発生）、`Player.update()`の自動戦闘AI（低HP時の逃走・要塞ラッシュ・安全距離維持・敵弾回避・アイテム探索の優先順位）、敵の個別行動パターン（スケルトンの遠距離攻撃・ブロブの合体・final_boss/dark_lordの追跡→予備動作→突進の状態遷移）、障害物システム（押し出し・回避ベクトル・破壊とドロップ判定）、ランキングの上位10件ソート、タイトル/エンディング画面のキーボードのみでのボタン選択に加え、18種の武器クラス（Shuriken/Mine/Boomerang/Explosion/HolyWater/Bomb/BowWeapon/Spear/Whip/DeathSpiral/Tornado/Scythe/Abacus/MusketWeapon/HolyZone/HolyRay/BlackHole/ShadowClone/Axe/Nova/Dagger/LightningVortex/LegendHomingOrb）までカバーする
+- `tests/tests.js`: `describe()`/`test()`でグループ化された106件の検証群。データ整合性（ENEMY_DATA/POWERUPS/SPELLS/NPC_JOBS/EVOLUTIONSの整合性）、ワールド生成ヘルパー（`getBiome()`/`getObstacle()`の決定論性）、パワーアップ適用、武器進化判定、敵HPへの呪い倍率とWave/エンドレス補正、復活(`killPlayer()`)、音量、設定のキーコンフィグ、NPC職業ステータスと`attack()`の職業別分岐（戦士/僧侶/盗賊）、NPCの復活、ダンジョンの入場からクリア・自動帰還までの一連の流れ、メタプログレッション（魂の欠片の獲得・購入・永続化）、`checkCollisions()`（弾命中・XP取得とレベルアップ・回避率/防御力・村・宝箱・ポーション/MPポーション/ユニーク武器/レジェンド武器/妖精アイテム/契約書の取得）、`castSpell()`（未習得/MP不足/クールダウン中の抑止、ヒール/ヘイスト/ジャッジメントの効果）、要塞（トラップ・囚人・モンスターハウス発生）、`Player.update()`の自動戦闘AI（低HP時の逃走・要塞ラッシュ・安全距離維持・敵弾回避・アイテム探索の優先順位）、敵の個別行動パターン（スケルトンの遠距離攻撃・ブロブの合体・final_boss/dark_lordの追跡→予備動作→突進の状態遷移）、障害物システム（押し出し・回避ベクトル・破壊とドロップ判定）、ランキングの上位10件ソート、タイトル/エンディング画面のキーボードのみでのボタン選択に加え、18種の武器クラス（Shuriken/Mine/Boomerang/Explosion/HolyWater/Bomb/BowWeapon/Spear/Whip/DeathSpiral/Tornado/Scythe/Abacus/MusketWeapon/HolyZone/HolyRay/BlackHole/ShadowClone/Axe/Nova/Dagger/LightningVortex/LegendHomingOrb）までカバーする
 - 全体がグローバル状態を共有するクラシックスクリプト構成のため、厳密に孤立したユニットテストではなく「実ゲーム状態に対する軽量な検証」という位置づけ。各テストは自分が書き換える値を保存・復元することで実行順序に依存しないようにしている。オートバトルAIのテストは敵/敵弾/村/ジェムなど多数の配列を参照するため、共通ヘルパー(`withCleanWorld`)で世界を一時的にクリアしてから実行する。障害物のテストは配置がハッシュ決定論的なため、実在する障害物セルを探索するヘルパー(`findObstacleCell`)を使う
-- 実行結果はページ上に一覧表示される他、`<title>`（例: `✓ 105 / 105 passed - Tests`）とブラウザのコンソール（`TESTS PASSED: ...` / `TESTS FAILED: ...`）にも出力されるため、`--dump-dom`や`--headless`のヘッドレスChromeなどからでも合否を確認できる。テスト完了後は`isPaused = true`にして`gameLoop()`の`requestAnimationFrame`ループを止めるため、自動化環境でもプロセスが残り続けない
+- 実行結果はページ上に一覧表示される他、`<title>`（例: `✓ 106 / 106 passed - Tests`）とブラウザのコンソール（`TESTS PASSED: ...` / `TESTS FAILED: ...`）にも出力されるため、`--dump-dom`や`--headless`のヘッドレスChromeなどからでも合否を確認できる。テスト完了後は`isPaused = true`にして`gameLoop()`の`requestAnimationFrame`ループを止めるため、自動化環境でもプロセスが残り続けない
 - このテストで、聖書の進化判定が存在しないプロパティ（`player.bibleLevel`）を参照しており、聖書をいくら強化しても進化イベントが発生しない不具合が実際に見つかり、`checkEvolution()`側の修正（正しくは`player.bibleCount`を参照）につながった
 - 未カバーの領域: `LegendHomingBullet`単体、`MagicWand`/`Fireball`/`Lightning`（ダメージ判定は`checkCollisions()`側にあるため個別クラスとしての検証は薄い）、スプライト/BGM生成（視覚・聴覚出力のため対象外）
 
