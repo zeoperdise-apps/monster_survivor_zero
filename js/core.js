@@ -41,6 +41,10 @@
         const destroyedObstacles = new Set();
         const obstacleHP = new Map();
         const dungeonEntrances = [];
+        let currentDungeon = null;
+        let dungeonInstanceCounter = 0;
+        let dungeonReturnX = 0;
+        let dungeonReturnY = 0;
         let largeBossDefeatedCount = 0;
         let bossDefeatedCount = 0;
         let enemiesDefeated = 0;

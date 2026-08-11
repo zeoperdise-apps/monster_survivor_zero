@@ -698,6 +698,30 @@
             }
         }
 
+        function enterDungeon() {
+            if (currentDungeon) return;
+
+            dungeonReturnX = player.x;
+            dungeonReturnY = player.y;
+            dungeonInstanceCounter++;
+            const ax = 2000000;
+            const ay = 2000000 + dungeonInstanceCounter * 2000;
+
+            const dx = (ax + 100) - player.x;
+            const dy = (ay + 100) - player.y;
+            npcs.forEach(n => { n.x += dx; n.y += dy; });
+            pets.forEach(p => { p.x += dx; p.y += dy; });
+            player.x = ax + 100;
+            player.y = ay + 100;
+
+            currentDungeon = new Dungeon(ax, ay);
+
+            Audio.legend();
+            spawnExplosion(player.x + player.width/2, player.y + player.height/2, '#00BFFF', 50);
+            const guardianName = ENEMY_DATA[currentDungeon.guardianType].name;
+            showDialog("HIDDEN DUNGEON", `隠されたダンジョンに足を踏み入れた！<br>アンデッドの群れと番人「${guardianName}」を全滅させるまで脱出できない。`, null, 4000);
+        }
+
         function killPlayer(cause) {
             if (player.revive > 0) {
                 player.revive--;

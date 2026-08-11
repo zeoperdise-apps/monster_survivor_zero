@@ -218,6 +218,11 @@
                 f.draw();
             }
 
+            // ダンジョン内部の描画
+            if (currentDungeon) {
+                currentDungeon.draw();
+            }
+
             // 影分身の描画
             for (const clone of shadowClones) {
                 clone.draw();
@@ -533,6 +538,8 @@
             // 要塞戦中ならBGM上書き
             const activeFortress = fortresses.find(f => f.triggered && !f.cleared);
             if (activeFortress || finalBossSpawned) { targetBgm = 'final_boss'; }
+            // ダンジョン内ならBGM上書き
+            if (currentDungeon && !currentDungeon.cleared) { targetBgm = 'final_boss'; }
             // 裏ボスBGM
             const darkLord = enemies.find(e => e.type === 'dark_lord');
             if (darkLord) {
@@ -745,7 +752,7 @@
             // 敵のスポーン
             const wave = Math.floor(frameCount / 1800);
             const spawnRate = Math.max(10, ENEMY_SPAWN_RATE - (wave * 5));
-            if (frameCount % spawnRate === 0 && enemies.length < 250) {
+            if (!currentDungeon && frameCount % spawnRate === 0 && enemies.length < 250) {
                 const isNight = (dayTime >= 0.75 || dayTime < 0.25);
                 // 出現地点(プレイヤー周辺)のバイオームに応じて出現候補を絞り込む
                 const biome = getBiome(player.x, player.y);
@@ -772,7 +779,7 @@
 
             let bossSpawned = null;
             // ボスのスポーン
-            if (frameCount > 0) {
+            if (!currentDungeon && frameCount > 0) {
                 if (frameCount % (BOSS_SPAWN_RATE * 3) === 0) {
                     const specialBosses = ['boss_hydra', 'boss_lich', 'boss_behemoth', 'boss_phoenix', 'boss_kraken'];
                     bossSpawned = new Enemy(specialBosses[Math.floor(Math.random() * specialBosses.length)], player);
@@ -785,7 +792,7 @@
             }
 
             // ラスボス出現 (ラージボス2体撃破後)
-            if (largeBossDefeatedCount >= 2 && !finalBossSpawned) {
+            if (!currentDungeon && largeBossDefeatedCount >= 2 && !finalBossSpawned) {
                 bossSpawned = new Enemy('final_boss', player);
                 enemies.push(bossSpawned);
                 finalBossSpawned = true;
@@ -793,7 +800,7 @@
             }
 
             // 裏魔王出現 (エンドレスモードでラージボスをさらに3体撃破後)
-            if (isEndlessMode && largeBossDefeatedCount >= 5 && !darkLordSpawned) {
+            if (!currentDungeon && isEndlessMode && largeBossDefeatedCount >= 5 && !darkLordSpawned) {
                 bossSpawned = new Enemy('dark_lord', player);
                 enemies.push(bossSpawned);
                 darkLordSpawned = true;
@@ -931,22 +938,20 @@
             checkObstacleInteraction();
 
             // ダンジョン入口との衝突
-            for (let i = dungeonEntrances.length - 1; i >= 0; i--) {
-                const d = dungeonEntrances[i];
-                if (Math.hypot(player.x - d.x, player.y - d.y) < 50) {
-                    dungeonEntrances.splice(i, 1);
-                    Audio.legend();
-                    // ダンジョン発見イベント（報酬）
-                    spawnExplosion(player.x + player.width/2, player.y + player.height/2, '#FFD700', 50);
-                    showChat("SYSTEM", "HIDDEN DUNGEON FOUND!", "#FFD700");
-                    for(let j=0; j<5; j++) {
-                        const angle = (Math.PI*2/5)*j;
-                        chests.push(new Chest(player.x + Math.cos(angle)*60, player.y + Math.sin(angle)*60));
-                    }
-                    for(let j=0; j<10; j++) {
-                        gems.push(new Gem(player.x + (Math.random()-0.5)*100, player.y + (Math.random()-0.5)*100, 50));
+            if (!currentDungeon) {
+                for (let i = dungeonEntrances.length - 1; i >= 0; i--) {
+                    const d = dungeonEntrances[i];
+                    if (Math.hypot(player.x - d.x, player.y - d.y) < 50) {
+                        dungeonEntrances.splice(i, 1);
+                        enterDungeon();
+                        break;
                     }
                 }
+            }
+
+            // ダンジョン内部の更新
+            if (currentDungeon) {
+                currentDungeon.update();
             }
 
             checkCollisions();

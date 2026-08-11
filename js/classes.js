@@ -762,6 +762,122 @@
             }
         }
 
+        class Dungeon {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 700;
+                this.height = 700;
+                this.cleared = false;
+                this.clearTimer = 0;
+                this.enemies = [];
+
+                // 建設予定地の障害物を除去
+                const startX = Math.floor(this.x / 100);
+                const endX = Math.floor((this.x + this.width) / 100);
+                const startY = Math.floor(this.y / 100);
+                const endY = Math.floor((this.y + this.height) / 100);
+                for (let ix = startX; ix <= endX; ix++) {
+                    for (let iy = startY; iy <= endY; iy++) {
+                        destroyedObstacles.add(`${ix},${iy}`);
+                    }
+                }
+
+                // アンデッド系のみで構成された固有の敵編成
+                const pool = ['skeleton', 'wraith', 'ghost', 'mummy', 'gargoyle', 'zombie'];
+                const count = 15 + Math.floor(level * 1.2);
+                for (let i = 0; i < count; i++) {
+                    const type = pool[Math.floor(Math.random() * pool.length)];
+                    const e = new Enemy(type, player);
+                    e.x = this.x + 60 + Math.random() * (this.width - 120);
+                    e.y = this.y + 60 + Math.random() * (this.height - 120);
+                    enemies.push(e);
+                    this.enemies.push(e);
+                }
+
+                // 固有の番人（守護者）
+                this.guardianType = ['boss_lich', 'boss_hydra'][Math.floor(Math.random() * 2)];
+                const guardian = new Enemy(this.guardianType, player);
+                guardian.x = this.x + this.width / 2;
+                guardian.y = this.y + 100;
+                enemies.push(guardian);
+                this.enemies.push(guardian);
+            }
+
+            update() {
+                // 結界で外に出られないようにする
+                const margin = 30;
+                if (player.x < this.x + margin) player.x = this.x + margin;
+                if (player.x + player.width > this.x + this.width - margin) player.x = this.x + this.width - margin - player.width;
+                if (player.y < this.y + margin) player.y = this.y + margin;
+                if (player.y + player.height > this.y + this.height - margin) player.y = this.y + this.height - margin - player.height;
+
+                if (!this.cleared) {
+                    this.enemies = this.enemies.filter(e => e.hp > 0);
+                    if (this.enemies.length === 0) {
+                        this.cleared = true;
+                        showChat("SYSTEM", "DUNGEON CLEARED!", "#00FFFF");
+                        Audio.legend();
+
+                        // 固有の報酬: レジェンド武器確定＋ユニーク武器＋大量のジェム
+                        const cx = player.getCenter().x;
+                        const cy = player.getCenter().y;
+                        legendDrops.push(new LegendWeaponDrop(cx, cy));
+                        uniqueDrops.push(new UniqueWeaponDrop(cx + 30, cy));
+                        for (let j = 0; j < 12; j++) {
+                            const angle = (Math.PI * 2 / 12) * j;
+                            gems.push(new Gem(cx + Math.cos(angle) * 60, cy + Math.sin(angle) * 60, 150));
+                        }
+                        spawnExplosion(cx, cy, '#00FFFF', 40);
+                    }
+                } else {
+                    this.clearTimer++;
+                    if (this.clearTimer > 180) { // 3秒後に帰還
+                        const dx = dungeonReturnX - player.x;
+                        const dy = dungeonReturnY - player.y;
+                        npcs.forEach(n => { n.x += dx; n.y += dy; });
+                        pets.forEach(p => { p.x += dx; p.y += dy; });
+                        player.x = dungeonReturnX;
+                        player.y = dungeonReturnY;
+                        showChat("SYSTEM", "RETURNED FROM DUNGEON", "#00FFFF");
+                        currentDungeon = null;
+                    }
+                }
+            }
+
+            draw() {
+                // 床
+                ctx.fillStyle = '#0a0a2a';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                // 石畳模様
+                ctx.strokeStyle = '#1a1a4a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let i = 0; i <= this.width; i += 50) {
+                    ctx.moveTo(this.x + i, this.y); ctx.lineTo(this.x + i, this.y + this.height);
+                }
+                for (let i = 0; i <= this.height; i += 50) {
+                    ctx.moveTo(this.x, this.y + i); ctx.lineTo(this.x + this.width, this.y + i);
+                }
+                ctx.stroke();
+
+                // 壁 (枠)
+                ctx.strokeStyle = '#00BFFF';
+                ctx.lineWidth = 8;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+
+                if (!this.cleared) {
+                    ctx.strokeStyle = `rgba(0, 191, 255, ${0.5 + Math.sin(frameCount * 0.2) * 0.3})`;
+                    ctx.lineWidth = 10;
+                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                } else {
+                    ctx.fillStyle = `rgba(0, 255, 255, ${0.3 - (this.clearTimer / 180) * 0.3})`;
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+            }
+        }
+
         class DungeonEntrance {
             constructor(x, y) {
                 this.x = x;
@@ -789,7 +905,7 @@
                 this.type = type;
                 this.width = data.width;
                 this.height = data.height;
-                this.hp = data.hp * hpMultiplier;
+                this.hp = data.hp * hpMultiplier * player.curse; // 呪いで敵のHPも強化される
                 this.maxHp = this.hp * endlessMult;
                 this.speed = ENEMY_SPEED * data.speed;
                 this.xpValue = data.xp;
