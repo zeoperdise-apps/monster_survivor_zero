@@ -354,7 +354,9 @@
         }
 
         // --- キーボードのみでの操作用: タイトル画面・エンディング画面のボタン選択 ---
-        let selectedStartIndex = 0;
+        // selectedStartIndexは-1(未選択)から始める。「PRESS KEY TO START」の主動線を守るため、
+        // 矢印キーで明示的にメニュー選択を始めるまでは、Enter/SpaceもstartGame()を発動させる
+        let selectedStartIndex = -1;
         let selectedEndingIndex = 0;
 
         function isAnyTitleModalOpen() {
@@ -405,16 +407,18 @@
                 if (isAnyTitleModalOpen()) return;
 
                 if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                    selectedStartIndex = (selectedStartIndex - 1 + 3) % 3;
+                    selectedStartIndex = selectedStartIndex <= 0 ? 2 : selectedStartIndex - 1;
                     updateStartSelection();
                     return;
                 }
                 if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-                    selectedStartIndex = (selectedStartIndex + 1) % 3;
+                    selectedStartIndex = selectedStartIndex < 0 ? 0 : (selectedStartIndex + 1) % 3;
                     updateStartSelection();
                     return;
                 }
-                if (e.key === 'Enter' || e.key === ' ') {
+                // メニューを矢印キーで開始済み(0以上)の場合のみEnter/Spaceをボタン決定として扱う。
+                // 未選択(-1)のままなら、Enter/Spaceも他のキーと同じく「PRESS KEY TO START」として扱う
+                if (selectedStartIndex >= 0 && (e.key === 'Enter' || e.key === ' ')) {
                     const btns = document.querySelectorAll('.start-menu-btn');
                     if (btns[selectedStartIndex]) btns[selectedStartIndex].click();
                     return;

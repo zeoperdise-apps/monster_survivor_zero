@@ -1329,6 +1329,30 @@ describe('キーボード操作: タイトル/エンディング画面のボタ�
         updateStartSelection();
     });
 
+    test('矢印キーでメニュー選択を開始した後だけ、Enterがボタンを実行する（ゲームを開始させない）回帰テスト', () => {
+        // 「未選択(-1)のままEnterを押すとstartGame()が呼ばれる」側は、実際にstartGame()を
+        // 再実行すると（フィールド初期化等の副作用で）他のテストが壊れるため、ここでは
+        // 「矢印キーでメニューに入った後はEnterがゲーム開始に流れない」side を安全に検証する
+        const savedGameStarted = isGameStarted;
+        const savedIndex = selectedStartIndex;
+        const savedRankingDisplay = document.getElementById('ranking-screen').style.display;
+
+        isGameStarted = false;
+        selectedStartIndex = -1;
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        assertEqual(selectedStartIndex, 0, '矢印キーでメニュー選択(0番目)が始まるはず');
+        assertFalse(isGameStarted, 'メニュー選択を開始しただけではゲームは始まらないはず');
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        assertEqual(document.getElementById('ranking-screen').style.display, 'flex', 'Enterで選択中のRANKINGボタンが実行されるはず');
+        assertFalse(isGameStarted, 'ボタン実行時もゲームは始まらないはず');
+
+        document.getElementById('ranking-screen').style.display = savedRankingDisplay;
+        selectedStartIndex = savedIndex;
+        isGameStarted = savedGameStarted;
+    });
+
     test('updateEndingSelection()は選択中のボタンにのみselectedクラスを付与する', () => {
         const savedIndex = selectedEndingIndex;
         selectedEndingIndex = 1;
