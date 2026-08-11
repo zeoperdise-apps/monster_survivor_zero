@@ -389,7 +389,8 @@
 
         function checkEvolution() {
             for (const evo of EVOLUTIONS) {
-                const weaponLevel = player[evo.weapon + 'Level'];
+                // 聖書だけ他の武器と異なり player.bibleCount で管理されている（player.bibleLevel は存在しない）
+                const weaponLevel = evo.weapon === 'bible' ? player.bibleCount : player[evo.weapon + 'Level'];
                 const passiveLevel = acquiredItems[evo.passive] || 0;
                 const isEvolved = player.evolved[evo.weapon];
 
