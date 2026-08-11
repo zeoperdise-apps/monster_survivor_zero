@@ -297,20 +297,24 @@ describe('ダンジョン', () => {
         assertTrue(Math.abs(player.x - originX) > 1000000, 'プレイヤーは遠方のダンジョン区画へ転移するはず');
 
         const uniqueBefore = uniqueDrops.length;
+        const legendBefore = legendDrops.length;
         currentDungeon.enemies.forEach(e => { e.hp = 0; });
         currentDungeon.update();
         assertTrue(currentDungeon.cleared, '敵を全滅させるとクリア扱いになるはず');
         assertTrue(uniqueDrops.length > uniqueBefore, 'クリア報酬でユニーク武器がドロップするはず');
+        assertTrue(legendDrops.length > legendBefore, 'クリア報酬でレジェンド武器がドロップするはず');
 
         for (let i = 0; i < 200 && currentDungeon; i++) currentDungeon.update();
         assertEqual(currentDungeon, null, '帰還タイマー経過後はcurrentDungeonがnullになるはず');
         assertClose(player.x, originX, 0.01, '元の座標ちょうどへ帰還するはず');
         assertClose(player.y, originY, 0.01);
 
-        // 後片付け: 倒したダンジョン敵をグローバル配列から除去（他のテストへの影響を防ぐ）
+        // 後片付け: 倒したダンジョン敵、および未回収のドロップ品をグローバル配列から除去（他のテストへの影響を防ぐ）
         for (let i = enemies.length - 1; i >= 0; i--) {
             if (enemies[i].hp <= 0) enemies.splice(i, 1);
         }
+        uniqueDrops.length = uniqueBefore;
+        legendDrops.length = legendBefore;
     });
 });
 
@@ -802,6 +806,187 @@ describe('showLevelUpOptions()', () => {
         assertFalse(pool.some(p => p.id === 'max_hp'), 'max_hpはプールに含まれてはいけない');
         assertFalse(pool.some(p => p.id === 'revive'), 'reviveはプールに含まれてはいけない');
         assertEqual(pool.length, POWERUPS.length - 2, '除外されるのはこの2種類のみのはず');
+    });
+});
+
+describe('Player - 自動戦闘AI', () => {
+    // オートバトルの判定は敵/敵弾/村/ジェムなど多数の配列を参照するため、
+    // このdescribe内のテストは共通ヘルパーで一時的に世界をクリアしてから実行する。
+    function withCleanWorld(fn) {
+        const saved = {
+            npcs: npcs.slice(), enemies: enemies.slice(), enemyBullets: enemyBullets.slice(),
+            potions: potions.slice(), villages: villages.slice(), gems: gems.slice(), fortresses: fortresses.slice(),
+        };
+        npcs.length = 0; enemies.length = 0; enemyBullets.length = 0;
+        potions.length = 0; villages.length = 0; gems.length = 0; fortresses.length = 0;
+
+        const savedAutoBattle = isAutoBattle;
+        const savedX = player.x, savedY = player.y;
+        const savedHp = player.hp, savedMaxHp = player.maxHp;
+        isAutoBattle = true;
+        player.maxHp = 100;
+        player.hp = 100;
+
+        try {
+            fn();
+        } finally {
+            player.x = savedX; player.y = savedY;
+            player.hp = savedHp; player.maxHp = savedMaxHp;
+            isAutoBattle = savedAutoBattle;
+            npcs.length = 0; npcs.push(...saved.npcs);
+            enemies.length = 0; enemies.push(...saved.enemies);
+            enemyBullets.length = 0; enemyBullets.push(...saved.enemyBullets);
+            potions.length = 0; potions.push(...saved.potions);
+            villages.length = 0; villages.push(...saved.villages);
+            gems.length = 0; gems.push(...saved.gems);
+            fortresses.length = 0; fortresses.push(...saved.fortresses);
+        }
+    }
+
+    test('低HP(30%以下)時は最も近い敵から逃げる（最優先）', () => {
+        withCleanWorld(() => {
+            player.hp = 20; // 20%
+            const e = new Enemy('goblin', player);
+            e.x = player.x + 100; e.y = player.y;
+            enemies.push(e);
+            const distBefore = Math.hypot(e.x - player.x, e.y - player.y);
+            player.update();
+            const distAfter = Math.hypot(e.x - player.x, e.y - player.y);
+            assertTrue(distAfter > distBefore, 'HPが低いときは敵から遠ざかるはず');
+        });
+    });
+
+    test('仲間が4人以上いると未突入の要塞を目指す', () => {
+        withCleanWorld(() => {
+            for (let i = 0; i < 4; i++) npcs.push(new NPC(player.x, player.y, 'warrior'));
+            const f = new Fortress(3200000, 3200000);
+            f.triggered = false;
+            fortresses.push(f);
+            const distBefore = Math.hypot((f.x + f.width / 2) - player.x, (f.y + f.height / 2) - player.y);
+            player.update();
+            const distAfter = Math.hypot((f.x + f.width / 2) - player.x, (f.y + f.height / 2) - player.y);
+            assertTrue(distAfter < distBefore, '要塞に近づくはず');
+        });
+    });
+
+    test('安全距離(通常敵75px)より近いと敵から距離を取る', () => {
+        withCleanWorld(() => {
+            const e = new Enemy('goblin', player);
+            e.x = player.x + 50; e.y = player.y;
+            enemies.push(e);
+            const distBefore = Math.hypot(e.x - player.x, e.y - player.y);
+            player.update();
+            const distAfter = Math.hypot(e.x - player.x, e.y - player.y);
+            assertTrue(distAfter > distBefore, '安全距離より近い敵からは離れるはず');
+        });
+    });
+
+    test('近くの敵弾を回避する', () => {
+        withCleanWorld(() => {
+            const b = new EnemyBullet(player.x + 50, player.y, player.x, player.y);
+            b.x = player.x + 50; b.y = player.y;
+            enemyBullets.push(b);
+            const distBefore = Math.hypot(b.x - player.x, b.y - player.y);
+            player.update();
+            const distAfter = Math.hypot(b.x - player.x, b.y - player.y);
+            assertTrue(distAfter > distBefore, '近くの敵弾からは避けるはず');
+        });
+    });
+
+    test('脅威が無ければ最も近いXPジェムへ向かう', () => {
+        withCleanWorld(() => {
+            const g = new Gem(player.x + 200, player.y, 5);
+            gems.push(g);
+            const distBefore = Math.hypot(g.x - player.x, g.y - player.y);
+            player.update();
+            const distAfter = Math.hypot(g.x - player.x, g.y - player.y);
+            assertTrue(distAfter < distBefore, '脅威が無ければジェムに近づくはず');
+        });
+    });
+});
+
+describe('Enemyの行動パターン', () => {
+    test('スケルトンは射程内(500px)かつタイマー経過で遠距離弾を撃つ', () => {
+        const e = new Enemy('skeleton', player);
+        e.x = player.x + 300; e.y = player.y; // 250(接近しない距離)より遠いが500(射程)より近い
+        e.attackTimer = 125;
+        const bulletsBefore = enemyBullets.length;
+        e.update(player);
+        assertTrue(enemyBullets.length > bulletsBefore, '射程内かつタイマー経過で弾を撃つはず');
+        enemyBullets.length = bulletsBefore;
+    });
+
+    test('ブロブ同士は接触すると合体しHPが合算される', () => {
+        const a = new Enemy('blob', player);
+        const b = new Enemy('blob', player);
+        a.x = player.x; a.y = player.y;
+        b.x = player.x + 5; b.y = player.y; // 重なる距離
+        a.hp = 100; a.maxHp = 1000;
+        b.hp = 50; b.maxHp = 1000;
+        enemies.push(a, b);
+
+        a.update(player);
+
+        assertTrue(b.merged, '吸収された側はmerged=trueになるはず');
+        assertEqual(b.hp, 0, '吸収された側のHPは0になるはず');
+        assertClose(a.hp, 150, 0.01, '吸収した側のHPは合算されるはず');
+
+        enemies.splice(enemies.indexOf(a), 1);
+        enemies.splice(enemies.indexOf(b), 1);
+    });
+});
+
+describe('武器クラス（追加分）', () => {
+    test('HolyWaterは着地するとHolyZoneを生成して消える', () => {
+        const before = activeWeapons.length;
+        const hw = new HolyWater(player.x, player.y);
+        hw.targetY = hw.y; // 開始高度に戻ってきたら着地とみなす
+        for (let i = 0; i < 60 && hw.active; i++) hw.update();
+        assertFalse(hw.active, '着地したら非アクティブになるはず');
+        assertTrue(activeWeapons.length > before, 'HolyZoneが追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('Bombは一定距離落下するとExplosionを発生させて消える', () => {
+        const before = activeWeapons.length;
+        const bomb = new Bomb(player.x, player.y);
+        for (let i = 0; i < 60 && bomb.active; i++) bomb.update();
+        assertFalse(bomb.active, '着弾したら非アクティブになるはず');
+        assertTrue(activeWeapons.length > before, 'Explosionが追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('BowWeaponは残り体力が10未満になるとArrowを発射する', () => {
+        const before = activeWeapons.length;
+        const target = new Enemy('goblin', player);
+        target.x = player.x + 100; target.y = player.y;
+        const bw = new BowWeapon(player.x, player.y, target);
+        for (let i = 0; i < 11; i++) bw.update();
+        assertTrue(bw.fired, '10フレーム未満になったら発射されるはず');
+        assertTrue(activeWeapons.length > before, 'Arrowが追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('Spearは貫通し、ダメージはplayer.damageに比例する', () => {
+        const savedDamage = player.damage;
+        player.damage = 2.0;
+        const spear = new Spear(player.x, player.y, 1, 0);
+        assertClose(spear.damage, 40, 0.01);
+        assertTrue(spear.onHit(new Enemy('goblin', player)), '貫通するのでonHitはtrueを返すはず');
+        player.damage = savedDamage;
+    });
+
+    test('Whipは向き(facing)に応じて判定位置が反転する', () => {
+        const right = new Whip(100, 100, 'right');
+        const left = new Whip(100, 100, 'left');
+        assertEqual(right.x, 100, '右向きはxがそのまま');
+        assertClose(left.x, 100 - left.width, 0.01, '左向きはwidth分左にずれる');
+    });
+
+    test('DeathSpiralは指定角度の方向へ直進する', () => {
+        const ds = new DeathSpiral(0, 0, 0); // angle=0 -> +x方向
+        assertClose(ds.vx, 6, 0.01);
+        assertClose(ds.vy, 0, 0.01);
     });
 });
 
