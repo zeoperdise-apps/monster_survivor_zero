@@ -990,6 +990,157 @@ describe('武器クラス（追加分）', () => {
     });
 });
 
+describe('武器クラス（追加分2）', () => {
+    test('Tornadoは寿命が尽きると非アクティブになり、貫通する', () => {
+        const t = new Tornado(player.x, player.y);
+        t.life = 1;
+        t.update();
+        assertFalse(t.active, '寿命切れで非アクティブになるはず');
+        assertTrue(t.onHit(new Enemy('goblin', player)), '貫通するのでtrueを返すはず');
+    });
+
+    test('Scytheのサイズはplayer.area、寿命はplayer.durationに比例する', () => {
+        const savedArea = player.area, savedDuration = player.duration;
+        player.area = 2.0; player.duration = 2.0;
+        const s = new Scythe(player.x, player.y);
+        assertClose(s.width, 80, 0.01);
+        assertClose(s.life, 240, 0.01);
+        player.area = savedArea; player.duration = savedDuration;
+    });
+
+    test('Abacusのダメージはplayer.damageとdamageMultに比例する', () => {
+        const savedDamage = player.damage;
+        player.damage = 1.0;
+        const a = new Abacus(player.x, player.y, 1, 0, 2.0);
+        assertClose(a.damage, 50, 0.01); // 25 * 1.0 * 2.0
+        player.damage = savedDamage;
+    });
+
+    test('MusketWeaponは残りライフが15になった時点でMusketShotを発射する', () => {
+        const before = activeWeapons.length;
+        const target = new Enemy('goblin', player);
+        target.x = player.x + 100; target.y = player.y;
+        const mw = new MusketWeapon(player.x, player.y, target);
+        for (let i = 0; i < 15; i++) mw.update(); // life: 30 -> 15
+        assertTrue(mw.fired, 'life=15になった時点で発射されるはず');
+        assertTrue(activeWeapons.length > before, 'MusketShotが追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('HolyZoneのサイズはplayer.area、寿命はplayer.durationに比例する', () => {
+        const savedArea = player.area, savedDuration = player.duration;
+        player.area = 2.0; player.duration = 3.0;
+        const hz = new HolyZone(player.x, player.y);
+        assertClose(hz.width, 160, 0.01);
+        assertClose(hz.life, 360, 0.01);
+        player.area = savedArea; player.duration = savedDuration;
+    });
+
+    test('HolyRayは60フレームで消え、貫通する', () => {
+        const hr = new HolyRay(player.x, player.y, 0);
+        assertEqual(hr.life, 60);
+        for (let i = 0; i < 60; i++) hr.update();
+        assertFalse(hr.active, '寿命が尽きたら非アクティブになるはず');
+    });
+
+    test('BlackHoleは半径がmaxRadiusまで拡大し続けそこで頭打ちになる', () => {
+        const savedArea = player.area;
+        player.area = 1.0;
+        const bh = new BlackHole(player.x, player.y);
+        assertEqual(bh.radius, 10);
+        assertClose(bh.maxRadius, 300, 0.01);
+        for (let i = 0; i < 200; i++) bh.update();
+        assertClose(bh.radius, 300, 0.01, '半径はmaxRadiusで頭打ちになるはず');
+        player.area = savedArea;
+    });
+
+    test('ShadowCloneはプレイヤーの少し左後方の目標へ追従する', () => {
+        const savedX = player.x, savedY = player.y;
+        player.x = 1000; player.y = 1000;
+        const clone = new ShadowClone(player);
+        clone.x = 0; clone.y = 0;
+        const distBefore = Math.hypot((player.x - 50) - clone.x, player.y - clone.y);
+        clone.update();
+        const distAfter = Math.hypot((player.x - 50) - clone.x, player.y - clone.y);
+        assertTrue(distAfter < distBefore, 'プレイヤーの後方目標に近づくはず');
+        player.x = savedX; player.y = savedY;
+    });
+});
+
+describe('武器クラス（classes.js側）', () => {
+    test('Axeは画面外まで落下すると非アクティブになる', () => {
+        const axe = new Axe(player.x, player.y);
+        axe.vy = 0; // 初速(打ち上げ)を打ち消し、位置判定のみを検証する
+        axe.y = player.y + SCREEN_HEIGHT + 1; // 既に画面外相当
+        axe.update(player);
+        assertFalse(axe.active);
+    });
+
+    test('Novaは半径がmaxRadiusを超えると非アクティブになる', () => {
+        const savedArea = player.area;
+        player.area = 1.0;
+        const n = new Nova(player.x, player.y, 1);
+        assertClose(n.maxRadius, 120, 0.01); // (100 + 1*20) * 1.0
+        for (let i = 0; i < 20; i++) n.update();
+        assertFalse(n.active, '半径がmaxRadiusを超えたら非アクティブになるはず');
+        player.area = savedArea;
+    });
+
+    test('Daggerは1000px以上プレイヤーから離れると非アクティブになる', () => {
+        const d = new Dagger(player.x, player.y, 1, 0);
+        d.x = player.x + 2000; d.y = player.y;
+        d.update(player);
+        assertFalse(d.active);
+    });
+
+    test('Daggerのダメージはplayer.damageとdamageMultに比例する', () => {
+        const savedDamage = player.damage;
+        player.damage = 1.0;
+        const d = new Dagger(player.x, player.y, 1, 0, false, 2.0);
+        assertClose(d.damage, 30, 0.01); // 15 * 1.0 * 2.0
+        player.damage = savedDamage;
+    });
+
+    test('LightningVortexは寿命が尽きると非アクティブになり貫通する', () => {
+        const lv = new LightningVortex(0);
+        lv.life = 1;
+        lv.update();
+        assertFalse(lv.active);
+        assertTrue(lv.onHit(new Enemy('goblin', player)));
+    });
+});
+
+describe('ボスの突進ステートマシン(final_boss/dark_lord)', () => {
+    test('追跡中(state 0)、近距離かつタイマー経過で予備動作(state 1)へ移行する', () => {
+        const boss = new Enemy('final_boss', player);
+        boss.x = player.x + 100; boss.y = player.y; // dist=100 < 300
+        boss.state = 0;
+        boss.attackTimer = 181;
+        boss.update(player);
+        assertEqual(boss.state, 1, '距離300未満かつタイマー経過で予備動作へ移行するはず');
+    });
+
+    test('予備動作(state 1)からタイマー経過で突進(state 2)へ移行する', () => {
+        const boss = new Enemy('final_boss', player);
+        boss.x = player.x + 100; boss.y = player.y;
+        boss.state = 1;
+        boss.attackTimer = 41;
+        boss.update(player);
+        assertEqual(boss.state, 2, '予備動作後は突進状態へ移行するはず');
+        assertTrue(boss.chargeVx !== undefined, '突進速度が設定されるはず');
+    });
+
+    test('突進中(state 2)はタイマー経過で追跡(state 0)へ戻る', () => {
+        const boss = new Enemy('final_boss', player);
+        boss.x = player.x + 500; boss.y = player.y + 500;
+        boss.state = 2;
+        boss.chargeVx = 10; boss.chargeVy = 0;
+        boss.attackTimer = 31;
+        boss.update(player);
+        assertEqual(boss.state, 0, '突進終了後は追跡状態へ戻るはず');
+    });
+});
+
 // テスト完了後はgameLoop()のrequestAnimationFrameループを止める。
 // このページは本物のゲームスクリプトを読み込んでいるため、放置すると裏で無限ループし続け、
 // ヘッドレスブラウザ経由でこのファイルを自動実行する場合にプロセスが終了しづらくなるため。
