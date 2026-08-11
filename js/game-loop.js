@@ -997,6 +997,7 @@
         function startGame() {
             isGameStarted = true;
             startScreen.style.display = 'none';
+            applySpellKeyOverrides();
             frameCount = 0;
             isEndlessMode = false;
             enemiesDefeated = 0;

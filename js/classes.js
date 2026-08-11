@@ -370,11 +370,11 @@
                         }
                     }
 
-                    // キーボード移動 (加算)
-                    if (keys['ArrowLeft'] || keys['a'] || keys['A']) dx = -finalSpeed;
-                    if (keys['ArrowRight'] || keys['d'] || keys['D']) dx = finalSpeed;
-                    if (keys['ArrowUp'] || keys['w'] || keys['W']) dy = -finalSpeed;
-                    if (keys['ArrowDown'] || keys['s'] || keys['S']) dy = finalSpeed;
+                    // キーボード移動 (加算)。矢印キーは常に使え、文字キーはキーコンフィグに従う
+                    if (keys['ArrowLeft'] || keys[keyBindings.left] || keys[keyBindings.left.toUpperCase()]) dx = -finalSpeed;
+                    if (keys['ArrowRight'] || keys[keyBindings.right] || keys[keyBindings.right.toUpperCase()]) dx = finalSpeed;
+                    if (keys['ArrowUp'] || keys[keyBindings.up] || keys[keyBindings.up.toUpperCase()]) dy = -finalSpeed;
+                    if (keys['ArrowDown'] || keys[keyBindings.down] || keys[keyBindings.down.toUpperCase()]) dy = finalSpeed;
                 }
 
                 // 斜め移動の正規化

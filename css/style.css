@@ -276,10 +276,77 @@
         }
         .rank-row { display: flex; justify-content: space-between; width: 400px; font-size: 20px; margin: 5px 0; border-bottom: 1px solid #444; padding: 5px; }
 
+        #settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 340px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid #888;
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            pointer-events: auto;
+            z-index: 90;
+        }
+        #settings-btn:hover { border-color: #FFD700; }
+        #settings-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 260;
+            color: white;
+        }
+        #settings-body {
+            max-height: 70vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            width: 500px;
+            max-width: 90vw;
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+        .settings-section { margin-bottom: 15px; min-width: 0; }
+        .settings-section h4 { color: #FFD700; margin: 10px 0 5px; border-bottom: 1px solid #555; padding-bottom: 4px; }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 4px 0;
+            font-size: 14px;
+            min-width: 0;
+        }
+        .setting-label { flex: 1; min-width: 0; }
+        .setting-value { width: 45px; flex-shrink: 0; text-align: right; color: #FFD700; }
+        #volume-slider { flex: 2; min-width: 0; }
+        .keybind-list { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+        .keybind-btn {
+            background: #333; color: #fff; border: 1px solid #777;
+            padding: 6px 10px; cursor: pointer; font-size: 12px;
+            min-width: 90px; max-width: 100%; box-sizing: border-box;
+            text-align: left; display: flex; justify-content: space-between; gap: 8px;
+        }
+        .keybind-btn span { color: #FFD700; font-weight: bold; }
+        .keybind-btn:hover { background: #555; border-color: #fff; }
+        .keybind-btn.rebinding { border-color: #FF4500; color: #FF4500; animation: blink 1s infinite; }
+
         @keyframes titleFloat {
             0% { transform: translateY(0px); text-shadow: 0 0 10px red; }
             50% { transform: translateY(-10px); text-shadow: 0 0 20px red, 0 0 40px orange; }
             100% { transform: translateY(0px); text-shadow: 0 0 10px red; }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
         }
         
         #spells-container {
@@ -443,5 +510,25 @@
             .rank-row {
                 width: 90vw;
                 font-size: 14px;
+            }
+            #settings-btn {
+                top: auto;
+                bottom: 8px;
+                right: 8px;
+                width: 32px;
+                height: 32px;
+                font-size: 16px;
+            }
+            #settings-body {
+                width: 90vw;
+            }
+            .keybind-btn {
+                min-width: 0;
+                font-size: 11px;
+                padding: 5px 8px;
+            }
+            .setting-value {
+                width: 38px;
+                font-size: 12px;
             }
         }

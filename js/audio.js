@@ -10,22 +10,36 @@
                 if (!this.ctx) {
                     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                     this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.value = masterVolume;
                     this.masterGain.connect(this.ctx.destination);
+                    this.isMuted = masterVolume <= 0;
                 } else if (this.ctx.state === 'suspended') {
                     this.ctx.resume();
                 }
             },
 
-            toggleMute: function() {
-                if (!this.ctx) return;
-                this.isMuted = !this.isMuted;
+            // 設定画面の音量スライダーから呼ばれる（0.0〜1.0）
+            setVolume: function(v) {
+                masterVolume = v;
+                this.isMuted = v <= 0;
                 const el = document.getElementById('mute-status');
                 if (el) {
                     el.innerText = this.isMuted ? 'ON' : 'OFF';
                     el.style.color = this.isMuted ? '#ff0000' : '#fff';
                 }
-                const now = this.ctx.currentTime;
-                this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 1, now);
+                if (this.masterGain) {
+                    this.masterGain.gain.value = v;
+                }
+            },
+
+            // Mキー用のショートカット: 0とその直前の音量をトグルする
+            toggleMute: function() {
+                if (masterVolume > 0) {
+                    this.lastVolume = masterVolume;
+                    this.setVolume(0);
+                } else {
+                    this.setVolume(this.lastVolume || 1.0);
+                }
             },
 
             playTone: function(freq, type, duration, vol = 0.1) {

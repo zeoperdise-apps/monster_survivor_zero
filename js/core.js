@@ -92,9 +92,183 @@
         let isMouseDown = false;
         let gamepadIndex = null;
 
+        // --- 設定（音量・キーコンフィグ） ---
+        const SETTINGS_STORAGE_KEY = 'monster_survivors_settings';
+        const DEFAULT_KEY_BINDINGS = { up: 'w', down: 's', left: 'a', right: 'd', autoBattle: 'b', autoLevelUp: 'l', pause: '0', mute: 'm' };
+        const CORE_ACTION_LABELS = { up: '上', down: '下', left: '左', right: '右', autoBattle: '自動戦闘 切替', autoLevelUp: '自動レベルアップ 切替', pause: 'ポーズ', mute: 'ミュート切替' };
+        let keyBindings = Object.assign({}, DEFAULT_KEY_BINDINGS);
+        let masterVolume = 1.0;
+        let rebindingAction = null; // {type:'core', action} または {type:'spell', id}
+        let spellKeyOverrides = null; // SPELLSがまだ定義されていない間、保存されたスペルキー上書きを一時保持
+        let defaultSpellKeys = null; // リセット用に最初のSPELLS.keyを保持
+
+        (function loadSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || 'null');
+                if (saved) {
+                    if (typeof saved.volume === 'number') masterVolume = saved.volume;
+                    if (saved.keyBindings) Object.assign(keyBindings, saved.keyBindings);
+                    if (saved.spellKeys) spellKeyOverrides = saved.spellKeys;
+                }
+            } catch (e) {}
+        })();
+
+        function saveSettings() {
+            const spellKeys = {};
+            if (typeof SPELLS !== 'undefined') {
+                SPELLS.forEach(s => { spellKeys[s.id] = s.key; });
+            }
+            try {
+                localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ volume: masterVolume, keyBindings: keyBindings, spellKeys: spellKeys }));
+            } catch (e) {}
+        }
+
+        function applySpellKeyOverrides() {
+            if (typeof SPELLS === 'undefined') return;
+            if (!defaultSpellKeys) {
+                defaultSpellKeys = {};
+                SPELLS.forEach(s => { defaultSpellKeys[s.id] = s.key; });
+            }
+            if (spellKeyOverrides) {
+                SPELLS.forEach(s => { if (spellKeyOverrides[s.id]) s.key = spellKeyOverrides[s.id]; });
+                spellKeyOverrides = null;
+            }
+        }
+
+        function displayKey(k) {
+            if (k === ' ') return 'Space';
+            return k.length === 1 ? k.toUpperCase() : k;
+        }
+
+        function updateVolumeUI() {
+            const slider = document.getElementById('volume-slider');
+            const label = document.getElementById('volume-value');
+            const pct = Math.round(masterVolume * 100);
+            if (slider) slider.value = pct;
+            if (label) label.innerText = pct + '%';
+        }
+
+        function updateKeyLabels() {
+            ['autoBattle', 'autoLevelUp', 'mute'].forEach(action => {
+                const el = document.getElementById('key-label-' + action);
+                if (el) el.innerText = displayKey(keyBindings[action]);
+            });
+        }
+        updateKeyLabels();
+
+        function makeKeybindButton(label, currentKey, descriptor) {
+            const btn = document.createElement('button');
+            const isThis = rebindingAction && rebindingAction.type === descriptor.type &&
+                (descriptor.type === 'core' ? rebindingAction.action === descriptor.action : rebindingAction.id === descriptor.id);
+            btn.className = 'keybind-btn' + (isThis ? ' rebinding' : '');
+            btn.innerHTML = `${label}<span>${isThis ? '...' : displayKey(currentKey)}</span>`;
+            btn.onclick = () => { rebindingAction = descriptor; buildSettingsMenu(); };
+            return btn;
+        }
+
+        function buildSettingsMenu() {
+            const movementBox = document.getElementById('keybind-movement');
+            const actionsBox = document.getElementById('keybind-actions');
+            const spellsBox = document.getElementById('keybind-spells');
+            if (!movementBox) return;
+            movementBox.innerHTML = '';
+            actionsBox.innerHTML = '';
+            spellsBox.innerHTML = '';
+
+            ['up', 'down', 'left', 'right'].forEach(action => {
+                movementBox.appendChild(makeKeybindButton(CORE_ACTION_LABELS[action], keyBindings[action], { type: 'core', action }));
+            });
+            ['autoBattle', 'autoLevelUp', 'pause', 'mute'].forEach(action => {
+                actionsBox.appendChild(makeKeybindButton(CORE_ACTION_LABELS[action], keyBindings[action], { type: 'core', action }));
+            });
+            if (typeof SPELLS !== 'undefined') {
+                SPELLS.slice().sort((a, b) => a.level - b.level).forEach(spell => {
+                    spellsBox.appendChild(makeKeybindButton(spell.name, spell.key, { type: 'spell', id: spell.id }));
+                });
+            }
+        }
+
+        function captureRebind(key) {
+            if (key === 'Escape') {
+                rebindingAction = null;
+                buildSettingsMenu();
+                return;
+            }
+            const displayValue = key.length === 1 ? key.toUpperCase() : key;
+            const matchValue = key.length === 1 ? key.toLowerCase() : key;
+            if (rebindingAction.type === 'core') {
+                keyBindings[rebindingAction.action] = matchValue;
+            } else if (rebindingAction.type === 'spell' && typeof SPELLS !== 'undefined') {
+                const spell = SPELLS.find(s => s.id === rebindingAction.id);
+                if (spell) spell.key = displayValue;
+                if (typeof updateSpellUI === 'function') updateSpellUI();
+            }
+            rebindingAction = null;
+            saveSettings();
+            buildSettingsMenu();
+            updateKeyLabels();
+        }
+
+        function openSettings() {
+            if (levelUpScreen.style.display === 'flex' || npcSelectScreen.style.display === 'flex' ||
+                document.getElementById('chest-screen').style.display === 'flex') return;
+            document.getElementById('settings-screen').style.display = 'flex';
+            updateVolumeUI();
+            buildSettingsMenu();
+            if (isGameStarted) isPaused = true;
+        }
+
+        function closeSettings() {
+            rebindingAction = null;
+            document.getElementById('settings-screen').style.display = 'none';
+            if (isGameStarted && isPaused) {
+                isPaused = false;
+                gameLoop();
+            }
+        }
+
+        function resetSettings() {
+            Object.assign(keyBindings, DEFAULT_KEY_BINDINGS);
+            if (typeof SPELLS !== 'undefined' && defaultSpellKeys) {
+                SPELLS.forEach(s => { s.key = defaultSpellKeys[s.id]; });
+                if (typeof updateSpellUI === 'function') updateSpellUI();
+            }
+            if (typeof Audio !== 'undefined') Audio.setVolume(1.0);
+            updateVolumeUI();
+            saveSettings();
+            buildSettingsMenu();
+            updateKeyLabels();
+        }
+
+        const volumeSlider = document.getElementById('volume-slider');
+        if (volumeSlider) {
+            volumeSlider.addEventListener('input', (e) => {
+                const v = parseInt(e.target.value, 10) / 100;
+                if (typeof Audio !== 'undefined') Audio.setVolume(v);
+                else masterVolume = v;
+                updateVolumeUI();
+                saveSettings();
+            });
+        }
+
         // --- 入力管理 ---
         const keys = {};
         window.addEventListener('keydown', e => {
+            if (rebindingAction) {
+                e.preventDefault();
+                captureRebind(e.key);
+                return;
+            }
+
+            if (e.key === 'Escape') {
+                if (document.getElementById('settings-screen').style.display === 'flex') {
+                    closeSettings();
+                } else if (isGameStarted) {
+                    openSettings();
+                }
+                return;
+            }
+
             keys[e.key] = true;
 
             if (!isGameStarted) {
@@ -102,19 +276,19 @@
                 return;
             }
 
-            if (e.key === 'b' || e.key === 'B') {
+            if (e.key.toLowerCase() === keyBindings.autoBattle) {
                 isAutoBattle = !isAutoBattle;
                 autoBattleEl.innerText = isAutoBattle ? 'ON' : 'OFF';
                 autoBattleEl.style.color = isAutoBattle ? '#00ff00' : '#fff';
             }
 
-            if (e.key === 'l' || e.key === 'L') {
+            if (e.key.toLowerCase() === keyBindings.autoLevelUp) {
                 isAutoLevelUp = !isAutoLevelUp;
                 autoLevelupEl.innerText = isAutoLevelUp ? 'ON' : 'OFF';
                 autoLevelupEl.style.color = isAutoLevelUp ? '#00ff00' : '#fff';
             }
 
-            if (e.key === '0') {
+            if (e.key.toLowerCase() === keyBindings.pause) {
                 isPaused = !isPaused;
                 if (!isPaused) {
                     gameLoop();
@@ -147,11 +321,13 @@
                 if (s > 5.0) s = 5.0;
                 setGameSpeed(s);
             }
-            
-            if (e.key === 'm' || e.key === 'M') {
+
+            if (e.key.toLowerCase() === keyBindings.mute) {
                 Audio.toggleMute();
+                updateVolumeUI();
+                saveSettings();
             }
-            
+
             if (e.key === 'F8') {
                 const menu = document.getElementById('debug-menu');
                 menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
@@ -196,23 +372,13 @@
                 }
             }
 
-            // 魔法発動キー
-            if (e.key === 'z' || e.key === 'Z') castSpell('heal');
-            if (e.key === 'x' || e.key === 'X') castSpell('firestorm');
-            if (e.key === 'c' || e.key === 'C') castSpell('judgment');
-            if (e.key === 'v' || e.key === 'V') castSpell('teleport');
-            if (e.key === 't' || e.key === 'T') castSpell('time_stop');
-            if (e.key === 'n' || e.key === 'N') castSpell('summon_golem');
-            if (e.key === 'g' || e.key === 'G') castSpell('meteor');
-            if (e.key === 'h' || e.key === 'H') castSpell('black_hole');
-            if (e.key === 'j' || e.key === 'J') castSpell('haste');
-            if (e.key === 'k' || e.key === 'K') castSpell('berserk');
-            if (e.key === 'y' || e.key === 'Y') castSpell('ice_nova');
-            if (e.key === 'u' || e.key === 'U') castSpell('reflect_shield');
-            if (e.key === 'i' || e.key === 'I') castSpell('holy_ray');
-            if (e.key === 'o' || e.key === 'O') castSpell('earthquake');
-            if (e.key === 'p' || e.key === 'P') castSpell('chain_lightning');
-            if (e.key === 'q' || e.key === 'Q') castSpell('shadow_clone');
+            // 魔法発動キー（SPELLS配列のkeyプロパティを直接参照するため、キーコンフィグでの変更がそのまま反映される）
+            if (typeof SPELLS !== 'undefined') {
+                const pressed = e.key.toUpperCase();
+                SPELLS.forEach(spell => {
+                    if (pressed === spell.key) castSpell(spell.id);
+                });
+            }
         });
         window.addEventListener('keyup', e => keys[e.key] = false);
         
