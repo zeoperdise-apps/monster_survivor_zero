@@ -233,6 +233,27 @@
         });
         canvas.addEventListener('mouseup', () => isMouseDown = false);
 
+        // タッチ操作対応（モバイル）: マウスドラッグ移動と同じ仕組み(isMouseDown/mouseX/mouseY)を再利用する
+        function updateTouchPos(touch) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            mouseX = (touch.clientX - rect.left) * scaleX;
+            mouseY = (touch.clientY - rect.top) * scaleY;
+        }
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 0) return;
+            updateTouchPos(e.touches[0]);
+            isMouseDown = true;
+        }, { passive: true });
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 0) return;
+            updateTouchPos(e.touches[0]);
+            e.preventDefault(); // ドラッグ中にページがスクロール/ズームしないようにする
+        }, { passive: false });
+        canvas.addEventListener('touchend', () => { isMouseDown = false; });
+        canvas.addEventListener('touchcancel', () => { isMouseDown = false; });
+
         // ゲームパッド接続
         window.addEventListener("gamepadconnected", (e) => {
             gamepadIndex = e.gamepad.index;

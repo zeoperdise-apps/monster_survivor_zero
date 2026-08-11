@@ -18,6 +18,11 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+            /* タッチドラッグ中にブラウザ側のスクロール/ズーム/長押しメニューを抑止 */
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #ui {
             position: absolute;
@@ -370,3 +375,73 @@
             display: inline-block;
         }
         .debug-btn:hover { background: #555; border-color: #fff; }
+
+        /* --- モバイル/狭幅・低高さ画面向けレイアウト（縦持ち・横持ちの両方をカバー） --- */
+        @media (max-width: 600px), (max-height: 500px) {
+            #ui {
+                top: 8px;
+                left: 8px;
+                font-size: 13px;
+            }
+            .bar-container {
+                width: 140px;
+                height: 16px;
+                margin-bottom: 4px;
+            }
+            #inventory {
+                top: 8px;
+                right: 8px;
+                width: 40vw;
+            }
+            .inv-slot {
+                width: 24px;
+                height: 24px;
+            }
+            #spells-container {
+                bottom: 8px;
+                left: 8px;
+                flex-wrap: wrap;
+                max-width: 60vw;
+                gap: 4px;
+            }
+            .spell-slot {
+                width: 36px;
+                height: 36px;
+                font-size: 9px;
+            }
+            #debug-menu {
+                width: 85vw;
+                right: 7.5vw;
+            }
+            .powerup-card {
+                width: 80vw;
+                max-width: 300px;
+                padding: 12px;
+            }
+            .powerup-title {
+                font-size: 18px;
+            }
+            #chat-box {
+                min-width: 0;
+                width: 85vw;
+                font-size: 14px;
+                padding: 10px 15px;
+                bottom: 90px;
+            }
+            #dialog-box {
+                font-size: 15px;
+                padding: 12px;
+            }
+            #start-screen h1, #ending-screen h1, #chest-screen h1 {
+                font-size: 22px !important;
+                max-width: 90vw;
+                text-align: center;
+            }
+            #start-screen p, #ending-screen p {
+                font-size: 16px !important;
+            }
+            .rank-row {
+                width: 90vw;
+                font-size: 14px;
+            }
+        }
