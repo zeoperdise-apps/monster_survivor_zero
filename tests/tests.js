@@ -1141,6 +1141,182 @@ describe('ボスの突進ステートマシン(final_boss/dark_lord)', () => {
     });
 });
 
+describe('障害物システム', () => {
+    // 障害物はハッシュ決定論的に配置されるため、実在するセルを探索して使う
+    function findObstacleCell() {
+        for (let x = 5; x < 300; x++) {
+            for (let y = -100; y < 100; y++) {
+                const type = getObstacle(x, y);
+                if (type) return { x, y, type };
+            }
+        }
+        return null;
+    }
+
+    test('checkObstacleCollision()は障害物と重なったエンティティを押し出す', () => {
+        const cell = findObstacleCell();
+        assertTrue(!!cell, 'テスト用の障害物セルが見つかるはず');
+        const obsX = cell.x * 100 + 10;
+        const obsY = cell.y * 100 + 10;
+        const entity = { x: obsX + 40 - 15, y: obsY + 40 - 15, width: 30, height: 30 };
+        checkObstacleCollision(entity);
+        const stillOverlapping = entity.x < obsX + 80 && entity.x + entity.width > obsX &&
+            entity.y < obsY + 80 && entity.y + entity.height > obsY;
+        assertFalse(stillOverlapping, '押し出し後は障害物と重ならないはず');
+    });
+
+    test('getAvoidanceVector()は近くの障害物から離れる方向のベクトルを返す', () => {
+        const cell = findObstacleCell();
+        const obsCX = cell.x * 100 + 50;
+        const obsCY = cell.y * 100 + 50;
+        const entity = { x: obsCX + 30 - 15, y: obsCY - 15, width: 30, height: 30 }; // 障害物の右隣、検知半径100以内
+        const avoid = getAvoidanceVector(entity, 3.0);
+        assertTrue(avoid.x > 0, '障害物が左にあるので右向き(プラス)の回避ベクトルになるはず');
+    });
+
+    test('checkObstacleInteraction()は武器が障害物を破壊すると爆発とドロップ判定を発生させる', () => {
+        const cell = findObstacleCell();
+        const key = `${cell.x},${cell.y}`;
+        const wasDestroyed = destroyedObstacles.has(key);
+        const savedHpEntry = obstacleHP.get(key);
+        obstacleHP.delete(key);
+
+        const activeBefore = activeWeapons.length;
+        const daggersBefore = daggers.length;
+        const obsCX = cell.x * 100 + 50;
+        const obsCY = cell.y * 100 + 50;
+        const dagger = new Dagger(obsCX - 10, obsCY - 10, 1, 0);
+        dagger.damage = 999999; // 一撃で破壊
+        daggers.push(dagger);
+
+        checkObstacleInteraction();
+
+        assertTrue(destroyedObstacles.has(key), '破壊されたセルが記録されるはず');
+        assertTrue(activeWeapons.length > activeBefore, '破壊時に爆発(Explosion)が追加されるはず');
+        assertFalse(dagger.active, '弾丸系の武器は着弾すると消えるはず');
+
+        activeWeapons.length = activeBefore;
+        daggers.length = daggersBefore;
+        if (!wasDestroyed) destroyedObstacles.delete(key);
+        if (savedHpEntry) obstacleHP.set(key, savedHpEntry); else obstacleHP.delete(key);
+    });
+});
+
+describe('checkCollisions() - アイテム取得', () => {
+    test('ポーションに触れるとHPが50回復する', () => {
+        const savedHp = player.hp, savedMaxHp = player.maxHp;
+        player.maxHp = 200; player.hp = 100;
+        const p = new Potion(player.x, player.y);
+        potions.push(p);
+        checkCollisions();
+        assertClose(player.hp, 150, 0.01);
+        assertFalse(potions.includes(p));
+        player.hp = savedHp; player.maxHp = savedMaxHp;
+    });
+
+    test('MPポーションに触れるとMPが50回復する（回帰テスト: 以前は当たり判定が未実装だった）', () => {
+        const savedMp = player.mp, savedMaxMp = player.maxMp;
+        player.maxMp = 200; player.mp = 100;
+        const p = new MpPotion(player.x, player.y);
+        mpPotions.push(p);
+        checkCollisions();
+        assertClose(player.mp, 150, 0.01);
+        assertFalse(mpPotions.includes(p));
+        player.mp = savedMp; player.maxMp = savedMaxMp;
+    });
+
+    test('ユニーク武器ドロップに触れるとランダムな武器/パッシブが1段階強化される', () => {
+        const u = new UniqueWeaponDrop(player.x, player.y);
+        uniqueDrops.push(u);
+        const weaponTypes = ['bible', 'axe', 'aura', 'nova', 'dagger', 'wand', 'lightning', 'fireball'];
+        const before = {};
+        weaponTypes.forEach(w => { before[w] = player[w === 'bible' ? 'bibleCount' : w + 'Level']; });
+
+        checkCollisions();
+
+        assertFalse(uniqueDrops.includes(u), '触れたドロップは消えるはず');
+        const upgraded = weaponTypes.some(w => player[w === 'bible' ? 'bibleCount' : w + 'Level'] > before[w]);
+        assertTrue(upgraded, 'いずれかの武器/パッシブが強化されるはず');
+    });
+
+    test('レジェンド武器ドロップに触れるとホーミングオーブ武器を獲得する', () => {
+        const l = new LegendWeaponDrop(player.x, player.y);
+        legendDrops.push(l);
+        const before = activeWeapons.length;
+        checkCollisions();
+        assertFalse(legendDrops.includes(l));
+        assertTrue(activeWeapons.length > before, 'LegendHomingOrbが追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('妖精アイテムに触れるとペットを獲得する', () => {
+        const f = new FairyItem(player.x, player.y);
+        fairyItems.push(f);
+        const before = pets.length;
+        checkCollisions();
+        assertFalse(fairyItems.includes(f));
+        assertEqual(pets.length, before + 1, 'ペットが1体増えるはず');
+        pets.length = before;
+    });
+
+    test('契約書に触れるとNPC選択画面が開く', () => {
+        const savedDisplay = npcSelectScreen.style.display;
+        const savedPaused = isPaused;
+        const c = new Contract(player.x, player.y);
+        contracts.push(c);
+        checkCollisions();
+        assertFalse(contracts.includes(c));
+        assertEqual(npcSelectScreen.style.display, 'flex');
+        npcSelectScreen.style.display = savedDisplay;
+        isPaused = savedPaused;
+    });
+});
+
+describe('NPCの復活', () => {
+    test('戦闘不能のNPCにプレイヤーが近づいているとHPが回復し満タンで復活する', () => {
+        const npc = new NPC(player.x, player.y, 'warrior');
+        npc.isDead = true;
+        npc.hp = npc.maxHp - 1;
+        npc.update();
+        assertFalse(npc.isDead, 'HPが満タンになると復活するはず');
+        assertEqual(npc.hp, npc.maxHp);
+    });
+});
+
+describe('LegendHomingOrb', () => {
+    test('一定間隔でホーミング弾(LegendHomingBullet)を発射する', () => {
+        const e = new Enemy('goblin', player);
+        e.x = player.x + 200; e.y = player.y;
+        enemies.push(e);
+        const orb = new LegendHomingOrb(player);
+        const before = activeWeapons.length;
+        orb.update(); orb.update(); // attackInterval=2
+        assertTrue(activeWeapons.length > before, '一定間隔でLegendHomingBulletを発射するはず');
+        activeWeapons.length = before;
+        enemies.splice(enemies.indexOf(e), 1);
+    });
+});
+
+describe('ランキング', () => {
+    test('saveScore()は上位10件のみスコア降順で保持する', () => {
+        const savedRanking = localStorage.getItem('monster_survivors_ranking');
+        const savedShards = metaState.shards;
+        localStorage.removeItem('monster_survivors_ranking');
+
+        for (let i = 0; i < 12; i++) saveScore(i * 100, 1, false);
+
+        const ranking = JSON.parse(localStorage.getItem('monster_survivors_ranking'));
+        assertEqual(ranking.length, 10, '上位10件のみ保持されるはず');
+        assertEqual(ranking[0].score, 1100, '最高スコアが先頭に来るはず');
+        assertTrue(ranking[0].score >= ranking[ranking.length - 1].score, '降順ソートされているはず');
+
+        if (savedRanking) localStorage.setItem('monster_survivors_ranking', savedRanking);
+        else localStorage.removeItem('monster_survivors_ranking');
+        metaState.shards = savedShards;
+        saveMetaState();
+    });
+});
+
 // テスト完了後はgameLoop()のrequestAnimationFrameループを止める。
 // このページは本物のゲームスクリプトを読み込んでいるため、放置すると裏で無限ループし続け、
 // ヘッドレスブラウザ経由でこのファイルを自動実行する場合にプロセスが終了しづらくなるため。
