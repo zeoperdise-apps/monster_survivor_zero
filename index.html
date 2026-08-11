@@ -54,7 +54,8 @@
     </div>
     <div id="ending-screen">
         <h1 style="font-size: 48px; color: #FFD700; margin-bottom: 20px;">CONGRATULATIONS!</h1>
-        <p style="font-size: 24px; color: white; margin-bottom: 40px;">あなたは魔王を倒した。そして世界に平和が訪れた</p>
+        <p style="font-size: 24px; color: white; margin-bottom: 10px;">あなたは魔王を倒した。そして世界に平和が訪れた</p>
+        <p id="ending-shard-earned" style="font-size: 18px; color: #00FFFF; margin-bottom: 30px;"></p>
         <div style="display: flex; gap: 20px;">
             <button class="chest-btn" onclick="startEndlessMode()">エンドレスモード</button>
             <button class="chest-btn" style="background-color: #FF4500;" onclick="location.reload()">最初から</button>
@@ -63,13 +64,22 @@
     <div id="start-screen">
         <h1 style="font-size: 48px; color: #FFD700; text-shadow: 0 0 10px red; margin-bottom: 20px; animation: titleFloat 3s ease-in-out infinite;">MONSTER SURVIVORS</h1>
         <p style="font-size: 24px; color: white; animation: blink 1s infinite;">CLICK OR PRESS KEY TO START</p>
+        <div id="start-shard-display" style="font-size: 16px; color: #00FFFF; margin-top: 10px;">💎 魂の欠片: <span id="start-shard-count">0</span></div>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); showRanking()">RANKING</button>
             <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px;" onclick="event.stopPropagation(); openSettings()">SETTINGS</button>
+            <button class="chest-btn" style="z-index: 210; font-size: 18px; padding: 10px 30px; background-color:#00FFFF;" onclick="event.stopPropagation(); openMetaStore()">STORE</button>
         </div>
         <div style="position: absolute; bottom: 10px; right: 10px; font-size: 14px; color: rgba(255,255,255,0.7);">
-            Build: v0.9.9
+            Build: v0.9.10
         </div>
+    </div>
+    <div id="meta-store-screen">
+        <h1 style="color: #00FFFF; text-shadow: 0 0 10px #00FFFF; margin-bottom: 5px;">STORE</h1>
+        <p style="font-size: 14px; color: #aaa; margin: 0 0 10px;">プレイ終了時に獲得した「魂の欠片」で、次回以降の開始ステータスを永続強化できます</p>
+        <div id="meta-store-balance">💎 魂の欠片: <span id="meta-shards">0</span></div>
+        <div id="meta-store-list"></div>
+        <button class="chest-btn" style="margin-top: 15px; font-size:16px; padding:10px 20px;" onclick="closeMetaStore()">CLOSE</button>
     </div>
     <div id="settings-screen">
         <h1 style="color: #FFD700; text-shadow: 0 0 10px #FFD700; margin-bottom: 10px;">SETTINGS</h1>

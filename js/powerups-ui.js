@@ -526,7 +526,8 @@
             const screen = document.getElementById('ending-screen');
             const h1 = screen.querySelector('h1');
             const p = screen.querySelector('p');
-            
+            const shardText = document.getElementById('ending-shard-earned');
+
             if (isTrueEnding) {
                 h1.innerText = "TRUE ENDING";
                 h1.style.color = "#FF00FF";
@@ -536,7 +537,8 @@
                 h1.style.color = "#FFD700";
                 p.innerText = "あなたは魔王を倒した。そして世界に平和が訪れた";
             }
-            
+            if (shardText) shardText.innerText = `💎 魂の欠片 +${Math.floor(score / 10)} 獲得（STOREで永続強化に使用可）`;
+
             document.getElementById('ending-screen').style.display = 'flex';
             Audio.playBGM('ending');
         }

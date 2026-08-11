@@ -251,6 +251,108 @@
             });
         }
 
+        // --- メタプログレッション（ラン間の永続強化） ---
+        const META_STORAGE_KEY = 'monster_survivors_meta';
+        const META_UPGRADES = [
+            { id: 'might', name: '攻撃力強化', desc: '開始時の攻撃力+2%', maxLevel: 10, baseCost: 20, apply: (p, lvl) => { p.damage += 0.02 * lvl; } },
+            { id: 'vitality', name: '体力強化', desc: '開始時の最大HP+20', maxLevel: 10, baseCost: 20, apply: (p, lvl) => { p.maxHp += 20 * lvl; p.hp = p.maxHp; } },
+            { id: 'mana', name: '魔力強化', desc: '開始時の最大MP+10', maxLevel: 10, baseCost: 15, apply: (p, lvl) => { p.maxMp += 10 * lvl; p.mp = p.maxMp; } },
+            { id: 'speed', name: '俊足強化', desc: '開始時の移動速度+0.1', maxLevel: 5, baseCost: 30, apply: (p, lvl) => { p.speed += 0.1 * lvl; } },
+            { id: 'luck', name: '幸運強化', desc: '開始時の運+5%（ドロップ率上昇）', maxLevel: 10, baseCost: 20, apply: (p, lvl) => { p.luck += 0.05 * lvl; } },
+            { id: 'magnet', name: '収集範囲強化', desc: '開始時のアイテム収集半径+10', maxLevel: 10, baseCost: 15, apply: (p, lvl) => { p.magnet += 10 * lvl; } },
+            { id: 'greed', name: '強欲の心得', desc: 'スコア獲得量+5%（獲得できる魂の欠片も比例して増加）', maxLevel: 10, baseCost: 25, apply: (p, lvl) => { p.greed += 0.05 * lvl; } },
+            { id: 'revive', name: '不屈の魂', desc: '開始時の復活回数+1', maxLevel: 3, baseCost: 150, apply: (p, lvl) => { p.revive += lvl; } },
+        ];
+        let metaState = { shards: 0, upgrades: {} };
+
+        (function loadMetaState() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(META_STORAGE_KEY) || 'null');
+                if (saved) {
+                    if (typeof saved.shards === 'number') metaState.shards = saved.shards;
+                    if (saved.upgrades) metaState.upgrades = saved.upgrades;
+                }
+            } catch (e) {}
+        })();
+
+        function saveMetaState() {
+            try {
+                localStorage.setItem(META_STORAGE_KEY, JSON.stringify(metaState));
+            } catch (e) {}
+        }
+
+        function updateShardDisplays() {
+            const startEl = document.getElementById('start-shard-count');
+            if (startEl) startEl.innerText = metaState.shards;
+            const storeEl = document.getElementById('meta-shards');
+            if (storeEl) storeEl.innerText = metaState.shards;
+        }
+        updateShardDisplays();
+
+        // ランで得たスコアの一部を永続通貨（魂の欠片）に変換する。saveScore()から呼ばれる
+        function earnMetaShards(finalScore) {
+            const earned = Math.floor(finalScore / 10);
+            if (earned > 0) {
+                metaState.shards += earned;
+                saveMetaState();
+                updateShardDisplays();
+            }
+            return earned;
+        }
+
+        // ラン開始時（startGame内）に、購入済みの永続強化をプレイヤーに適用する
+        function applyMetaUpgrades() {
+            META_UPGRADES.forEach(u => {
+                const level = metaState.upgrades[u.id] || 0;
+                if (level > 0) u.apply(player, level);
+            });
+        }
+
+        function buildMetaStoreMenu() {
+            const list = document.getElementById('meta-store-list');
+            if (!list) return;
+            list.innerHTML = '';
+            META_UPGRADES.forEach(u => {
+                const level = metaState.upgrades[u.id] || 0;
+                const maxed = level >= u.maxLevel;
+                const cost = u.baseCost * (level + 1);
+                const row = document.createElement('div');
+                row.className = 'meta-store-row';
+                row.innerHTML = `
+                    <div class="meta-store-info">
+                        <div class="meta-store-title">${u.name}<span class="meta-store-level">Lv.${level}/${u.maxLevel}</span></div>
+                        <div class="meta-store-desc">${u.desc}</div>
+                    </div>
+                    <button class="chest-btn meta-buy-btn" ${maxed ? 'disabled' : (metaState.shards < cost ? 'disabled' : '')}>${maxed ? 'MAX' : `💎${cost}`}</button>
+                `;
+                row.querySelector('.meta-buy-btn').onclick = () => buyMetaUpgrade(u.id);
+                list.appendChild(row);
+            });
+            updateShardDisplays();
+        }
+
+        function buyMetaUpgrade(id) {
+            const u = META_UPGRADES.find(x => x.id === id);
+            if (!u) return;
+            const level = metaState.upgrades[id] || 0;
+            if (level >= u.maxLevel) return;
+            const cost = u.baseCost * (level + 1);
+            if (metaState.shards < cost) return;
+            metaState.shards -= cost;
+            metaState.upgrades[id] = level + 1;
+            saveMetaState();
+            buildMetaStoreMenu();
+        }
+
+        function openMetaStore() {
+            document.getElementById('meta-store-screen').style.display = 'flex';
+            buildMetaStoreMenu();
+        }
+
+        function closeMetaStore() {
+            document.getElementById('meta-store-screen').style.display = 'none';
+        }
+
         // --- 入力管理 ---
         const keys = {};
         window.addEventListener('keydown', e => {

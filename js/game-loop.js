@@ -80,10 +80,16 @@
                     ctx.shadowBlur = 5;
                     ctx.fillText(`SCORE: ${Math.floor(score)}`, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 140);
                     ctx.fillText(`WAVE: ${Math.floor(frameCount / 1800) + 1}`, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 100);
-                    
+
+                    // 獲得した魂の欠片表示
+                    ctx.fillStyle = '#00FFFF';
+                    ctx.font = '18px sans-serif';
+                    ctx.fillText(`💎 魂の欠片 +${Math.floor(score / 10)} (STOREで永続強化に使用可)`, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 80);
+
                     // ランキングボタン表示
+                    ctx.fillStyle = '#FFF';
                     ctx.font = '20px sans-serif';
-                    ctx.fillText('(Check Ranking on Title Screen)', SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 70);
+                    ctx.fillText('(Check Ranking on Title Screen)', SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 55);
                 }
 
                 // リトライメッセージ
@@ -998,6 +1004,7 @@
             isGameStarted = true;
             startScreen.style.display = 'none';
             applySpellKeyOverrides();
+            applyMetaUpgrades();
             frameCount = 0;
             isEndlessMode = false;
             enemiesDefeated = 0;
@@ -1208,6 +1215,7 @@
             ranking.sort((a, b) => b.score - a.score);
             ranking.splice(10); // Top 10
             localStorage.setItem('monster_survivors_ranking', JSON.stringify(ranking));
+            earnMetaShards(newScore);
         }
 
         function showRanking() {
