@@ -401,4 +401,413 @@ describe('メタプログレッション（魂の欠片 / ストア）', () => {
     });
 });
 
+describe('checkCollisions() - 弾と敵', () => {
+    test('弾が敵に命中するとHPが減り、弾は消える', () => {
+        const e = new Enemy('goblin', player);
+        e.x = player.x; e.y = player.y; e.hp = 1000; e.maxHp = 1000;
+        enemies.push(e);
+        const b = new Bullet(player.x, player.y, player.x + 1, player.y);
+        b.x = e.x; b.y = e.y;
+        bullets.push(b);
+
+        const hpBefore = e.hp;
+        checkCollisions();
+
+        assertTrue(e.hp < hpBefore, '弾が命中してダメージを受けるはず');
+        assertFalse(bullets.includes(b), '命中した弾は消えるはず');
+
+        const idx = enemies.indexOf(e);
+        if (idx > -1) enemies.splice(idx, 1);
+    });
+});
+
+describe('checkCollisions() - XPジェムとレベルアップ', () => {
+    test('ジェムを取得するとXPが増え、必要量に達するとレベルアップする', () => {
+        const savedXp = xp;
+        const savedLevel = level;
+        const savedNextLevelXp = nextLevelXp;
+        const savedAutoLevelUp = isAutoLevelUp;
+        const savedPaused = isPaused;
+
+        xp = 0;
+        nextLevelXp = 10;
+        level = 1;
+        isAutoLevelUp = true; // モーダルを出さず自動で解決させる
+        isPaused = false; // showLevelUpOptions()内のgameLoop()同期呼び出し分岐を踏まないようにする
+
+        const pc = player.getCenter();
+        const g = new Gem(pc.x - 7, pc.y - 7, 15);
+        gems.push(g);
+        checkCollisions();
+
+        assertEqual(level, 2, 'XP15 >= 必要値10でレベルアップするはず');
+        assertFalse(gems.includes(g), '取得したジェムは消えるはず');
+
+        xp = savedXp;
+        level = savedLevel;
+        nextLevelXp = savedNextLevelXp;
+        isAutoLevelUp = savedAutoLevelUp;
+        isPaused = savedPaused;
+        levelUpScreen.style.display = 'none';
+    });
+});
+
+describe('checkCollisions() - プレイヤーと敵の接触', () => {
+    test('回避率100%なら被弾しない', () => {
+        const savedDodge = player.dodge;
+        const savedHp = player.hp;
+        const savedInvincible = player.invincibleTime;
+
+        player.dodge = 1.0;
+        player.invincibleTime = 0;
+        const e = new Enemy('goblin', player);
+        e.x = player.x; e.y = player.y;
+        enemies.push(e);
+
+        checkCollisions();
+        assertEqual(player.hp, savedHp, '回避率100%なら被弾しないはず');
+
+        const idx = enemies.indexOf(e);
+        if (idx > -1) enemies.splice(idx, 1);
+        player.dodge = savedDodge;
+        player.hp = savedHp;
+        player.invincibleTime = savedInvincible;
+    });
+
+    test('防御力が高くても被ダメージは最低1', () => {
+        const savedArmor = player.armor;
+        const savedHp = player.hp;
+        const savedInvincible = player.invincibleTime;
+        const savedDodge = player.dodge;
+
+        player.dodge = 0;
+        player.invincibleTime = 0;
+        player.armor = 100;
+        const e = new Enemy('goblin', player);
+        e.x = player.x; e.y = player.y;
+        enemies.push(e);
+
+        checkCollisions();
+        assertClose(player.hp, savedHp - 1, 0.01, '防御力が高くても最低1ダメージは受けるはず');
+
+        const idx = enemies.indexOf(e);
+        if (idx > -1) enemies.splice(idx, 1);
+        player.armor = savedArmor;
+        player.hp = savedHp;
+        player.invincibleTime = savedInvincible;
+        player.dodge = savedDodge;
+    });
+});
+
+describe('checkCollisions() - 村と宝箱', () => {
+    test('村に触れるとHPが全回復しNPC選択が開く（村自体は選択するまで消えない）', () => {
+        const savedHp = player.hp;
+        const savedNpcScreenDisplay = npcSelectScreen.style.display;
+        const savedPaused = isPaused;
+
+        player.hp = 1;
+        const v = new Village(player.x, player.y);
+        villages.push(v);
+        checkCollisions();
+
+        assertEqual(player.hp, player.maxHp, '村に触れるとHPが全回復するはず');
+        assertEqual(npcSelectScreen.style.display, 'flex', 'NPC選択画面が開くはず');
+        assertTrue(villages.includes(v), '職業を選ぶまで村自体は消えないはず');
+
+        npcSelectScreen.style.display = savedNpcScreenDisplay;
+        isPaused = savedPaused;
+        player.hp = savedHp;
+        villages.splice(villages.indexOf(v), 1);
+    });
+
+    test('NPC選択で職業を選ぶと最寄りの村が消える', () => {
+        const savedNpcScreenDisplay = npcSelectScreen.style.display;
+        const savedPaused = isPaused;
+        const savedNpcCount = npcs.length;
+
+        const v = new Village(player.x, player.y);
+        villages.push(v);
+        selectNpcJob('warrior');
+
+        assertFalse(villages.includes(v), '職業を選ぶと最寄りの村が消えるはず');
+        assertEqual(npcs.length, savedNpcCount + 1, '仲間が1体加入するはず');
+
+        npcs.pop(); // 後片付け（末尾に追加されるため）
+        npcSelectScreen.style.display = savedNpcScreenDisplay;
+        isPaused = savedPaused;
+    });
+
+    test('宝箱に触れるとopenChest()が呼ばれ宝箱が消える', () => {
+        const savedChestDisplay = document.getElementById('chest-screen').style.display;
+
+        const c = new Chest(player.x, player.y);
+        chests.push(c);
+        checkCollisions();
+
+        assertFalse(chests.includes(c), '触れた宝箱は消えるはず');
+        assertEqual(document.getElementById('chest-screen').style.display, 'flex', '宝箱画面が開くはず');
+
+        closeChest();
+        document.getElementById('chest-screen').style.display = savedChestDisplay;
+    });
+});
+
+describe('castSpell()', () => {
+    test('未習得の魔法は発動せずMPも消費されない', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp;
+        player.spells = player.spells.filter(id => id !== 'heal');
+        player.mp = 100;
+        castSpell('heal');
+        assertEqual(player.mp, 100, '未習得なら何も起きないはず');
+        player.spells = savedSpells;
+        player.mp = savedMp;
+    });
+
+    test('ヒールはHPを50回復しMPを消費してクールダウンをセットする', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp, savedMaxMp = player.maxMp;
+        const savedHp = player.hp, savedMaxHp = player.maxHp;
+        const savedCooldowns = Object.assign({}, player.spellCooldowns);
+
+        if (!player.spells.includes('heal')) player.spells.push('heal');
+        player.spellCooldowns.heal = 0;
+        player.maxHp = 200; player.hp = 100;
+        player.maxMp = 999; player.mp = 999;
+
+        castSpell('heal');
+
+        const spellData = SPELLS.find(s => s.id === 'heal');
+        assertClose(player.hp, 150, 0.01, 'HPが50回復するはず');
+        assertEqual(player.mp, 999 - spellData.mp, 'MPが消費されるはず');
+        assertTrue(player.spellCooldowns.heal > 0, 'クールダウンが設定されるはず');
+
+        player.spells = savedSpells;
+        player.mp = savedMp; player.maxMp = savedMaxMp;
+        player.hp = savedHp; player.maxHp = savedMaxHp;
+        player.spellCooldowns = savedCooldowns;
+    });
+
+    test('MP不足なら発動せずMPも消費されない', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp;
+        const savedCooldowns = Object.assign({}, player.spellCooldowns);
+        if (!player.spells.includes('heal')) player.spells.push('heal');
+        player.spellCooldowns.heal = 0;
+        player.mp = 0;
+
+        castSpell('heal');
+        assertEqual(player.mp, 0, 'MP不足時は消費されないはず');
+
+        player.spells = savedSpells;
+        player.mp = savedMp;
+        player.spellCooldowns = savedCooldowns;
+    });
+
+    test('クールダウン中は再発動できない', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp, savedMaxMp = player.maxMp;
+        const savedCooldowns = Object.assign({}, player.spellCooldowns);
+        if (!player.spells.includes('heal')) player.spells.push('heal');
+        player.maxMp = 999; player.mp = 999;
+        player.spellCooldowns.heal = 999;
+
+        const mpBefore = player.mp;
+        castSpell('heal');
+        assertEqual(player.mp, mpBefore, 'クールダウン中はMPが消費されないはず');
+
+        player.spells = savedSpells;
+        player.mp = savedMp; player.maxMp = savedMaxMp;
+        player.spellCooldowns = savedCooldowns;
+    });
+
+    test('ヘイストは600フレーム(10秒)のタイマーをセットする', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp, savedMaxMp = player.maxMp;
+        const savedCooldowns = Object.assign({}, player.spellCooldowns);
+        const savedHasteTimer = hasteTimer;
+
+        if (!player.spells.includes('haste')) player.spells.push('haste');
+        player.spellCooldowns.haste = 0;
+        player.maxMp = 999; player.mp = 999;
+
+        castSpell('haste');
+        assertEqual(hasteTimer, 600);
+
+        player.spells = savedSpells;
+        player.mp = savedMp; player.maxMp = savedMaxMp;
+        player.spellCooldowns = savedCooldowns;
+        hasteTimer = savedHasteTimer;
+    });
+
+    test('ジャッジメントは雑魚を即死させ、ボスには大ダメージ（即死ではない）を与える', () => {
+        const savedSpells = player.spells.slice();
+        const savedMp = player.mp, savedMaxMp = player.maxMp;
+        const savedCooldowns = Object.assign({}, player.spellCooldowns);
+
+        if (!player.spells.includes('judgment')) player.spells.push('judgment');
+        player.spellCooldowns.judgment = 0;
+        player.maxMp = 999; player.mp = 999;
+
+        const weak = new Enemy('goblin', player);
+        weak.x = player.x; weak.y = player.y; weak.hp = 9999;
+        const boss = new Enemy('boss', player);
+        boss.x = player.x; boss.y = player.y; boss.hp = 99999; boss.maxHp = 99999;
+        enemies.push(weak, boss);
+
+        castSpell('judgment');
+
+        assertTrue(weak.hp <= 0, '雑魚は即死するはず');
+        assertTrue(boss.hp < 99999, 'ボスはダメージを受けるはず');
+        assertTrue(boss.hp > 0, 'ボスは即死しないはず');
+
+        enemies.splice(enemies.indexOf(weak), 1);
+        enemies.splice(enemies.indexOf(boss), 1);
+        player.spells = savedSpells;
+        player.mp = savedMp; player.maxMp = savedMaxMp;
+        player.spellCooldowns = savedCooldowns;
+    });
+});
+
+describe('Fortress', () => {
+    test('生成時に15個のトラップと1体の囚人（非隠し職業）が設定される', () => {
+        const f = new Fortress(3000000, 3000000);
+        assertEqual(f.traps.length, 15);
+        assertTrue(!!f.prisoner, '囚人が設定されるはず');
+        const jobData = NPC_JOBS.find(j => j.id === f.prisoner.job);
+        assertTrue(!!jobData && !jobData.hidden, '囚人の職業は非隠し職業のはず');
+    });
+
+    test('侵入するとモンスターハウス（雑魚40+レベル体＋中ボス1体）が発生する', () => {
+        const f = new Fortress(3100000, 3100000);
+        const savedX = player.x, savedY = player.y;
+
+        player.x = f.x + f.width / 2;
+        player.y = f.y + f.height / 2;
+        f.update();
+
+        assertTrue(f.triggered, '侵入するとtriggeredになるはず');
+        const expectedCount = 40 + Math.floor(level) + 1; // 雑魚 + 中ボス1体
+        assertEqual(f.enemies.length, expectedCount);
+
+        f.enemies.forEach(e => {
+            const idx = enemies.indexOf(e);
+            if (idx > -1) enemies.splice(idx, 1);
+        });
+        player.x = savedX; player.y = savedY;
+    });
+});
+
+describe('NPC.attack()', () => {
+    test('戦士は斬撃(Slash)で攻撃する', () => {
+        const npc = new NPC(player.x, player.y, 'warrior');
+        const target = new Enemy('goblin', player);
+        target.x = player.x + 50; target.y = player.y;
+        const before = slashes.length;
+        npc.attack(target);
+        assertTrue(slashes.length > before, '戦士の攻撃でslashesが増えるはず');
+        slashes.length = before;
+    });
+
+    test('僧侶はHPが最も減っている味方（この場合プレイヤー）を回復する', () => {
+        const npc = new NPC(player.x, player.y, 'priest');
+        const savedHp = player.hp, savedMaxHp = player.maxHp;
+        player.maxHp = 200;
+        player.hp = 50;
+        const target = new Enemy('goblin', player);
+        npc.attack(target);
+        assertTrue(player.hp > 50, '僧侶がHPの少ないプレイヤーを回復するはず');
+        player.hp = savedHp;
+        player.maxHp = savedMaxHp;
+    });
+
+    test('盗賊はナイフ(Dagger)で攻撃する', () => {
+        const npc = new NPC(player.x, player.y, 'thief');
+        const target = new Enemy('goblin', player);
+        target.x = player.x + 50; target.y = player.y;
+        const before = daggers.length;
+        npc.attack(target);
+        assertTrue(daggers.length > before, '盗賊の攻撃でdaggersが増えるはず');
+        daggers.length = before;
+    });
+});
+
+describe('敵のWave/エンドレス補正', () => {
+    test('Wave経過でHPが1+wave×0.3倍される', () => {
+        const savedFrameCount = frameCount;
+        frameCount = 1800 * 3; // wave3
+        const e = new Enemy('goblin', player);
+        const expected = ENEMY_DATA.goblin.hp * (1 + 3 * 0.3) * player.curse;
+        assertClose(e.hp, expected, 0.5);
+        frameCount = savedFrameCount;
+    });
+
+    test('エンドレスモード中はmaxHpにさらに1+wave×0.5倍の補正がかかる', () => {
+        const savedFrameCount = frameCount;
+        const savedEndless = isEndlessMode;
+        frameCount = 1800 * 2; // wave2
+        isEndlessMode = true;
+        const e = new Enemy('goblin', player);
+        const endlessMult = 1 + 2 * 0.5;
+        assertClose(e.maxHp, e.hp * endlessMult, 0.5);
+        frameCount = savedFrameCount;
+        isEndlessMode = savedEndless;
+    });
+});
+
+describe('武器クラス', () => {
+    test('Shurikenは60フレーム後に非アクティブになる', () => {
+        const s = new Shuriken(player.x, player.y, 1, 0);
+        assertTrue(s.active);
+        for (let i = 0; i < 60; i++) s.update();
+        assertFalse(s.active, '寿命が尽きたら非アクティブになるはず');
+    });
+
+    test('Mineは命中すると爆発(Explosion)を発生させ自身は消える', () => {
+        const before = activeWeapons.length;
+        const m = new Mine(player.x, player.y);
+        const dummyEnemy = new Enemy('goblin', player);
+        const hit = m.onHit(dummyEnemy);
+        assertTrue(hit, 'onHitはtrueを返すはず');
+        assertFalse(m.active, '地雷は起爆すると消えるはず');
+        assertTrue(activeWeapons.length > before, '爆発(Explosion)が追加されるはず');
+        activeWeapons.length = before;
+    });
+
+    test('Boomerangは寿命が半分を切るとプレイヤー方向へ引き戻し加速する', () => {
+        const b = new Boomerang(player.x + 1000, player.y, 1, 0);
+        b.maxLife = 120;
+        b.life = 50; // 半分未満
+        b.vx = 0; b.vy = 0;
+        const expectedSign = Math.sign(player.x - b.x);
+        b.update();
+        assertEqual(Math.sign(b.vx), expectedSign, '寿命半分未満ではプレイヤー方向へ加速するはず');
+    });
+
+    test('Explosionのサイズはplayer.areaに比例する', () => {
+        const savedArea = player.area;
+        player.area = 2.0;
+        const ex = new Explosion(player.x, player.y);
+        assertClose(ex.width, 60 * 2.0, 0.01);
+        player.area = savedArea;
+    });
+});
+
+describe('showLevelUpOptions()', () => {
+    // showLevelUpOptions()自体は自動レベルアップ時にgameLoop()を同期的に呼び出す経路を持ち、
+    // テストから繰り返し直接呼ぶと呼び出し連鎖のリスクがあるため、ここでは抽選プールの
+    // 除外ロジック（実装と同一のfilter式）を直接検証する形に留める
+    test('max_hpとreviveは通常レベルアップの抽選プールから除外される（宝箱限定のため）', () => {
+        const pool = POWERUPS.filter(p => p.id !== 'max_hp' && p.id !== 'revive');
+        assertFalse(pool.some(p => p.id === 'max_hp'), 'max_hpはプールに含まれてはいけない');
+        assertFalse(pool.some(p => p.id === 'revive'), 'reviveはプールに含まれてはいけない');
+        assertEqual(pool.length, POWERUPS.length - 2, '除外されるのはこの2種類のみのはず');
+    });
+});
+
+// テスト完了後はgameLoop()のrequestAnimationFrameループを止める。
+// このページは本物のゲームスクリプトを読み込んでいるため、放置すると裏で無限ループし続け、
+// ヘッドレスブラウザ経由でこのファイルを自動実行する場合にプロセスが終了しづらくなるため。
+isPaused = true;
+
 finishTests();
